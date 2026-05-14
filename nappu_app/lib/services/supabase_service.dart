@@ -246,6 +246,19 @@ class SupabaseService {
         .eq('item_name', itemName);
   }
 
+  // ─── Token Transactions ──────────────────────────────────
+
+  static Future<List<Map<String, dynamic>>> getTokenTransactions({int limit = 50}) async {
+    if (userId == null) return [];
+    final res = await client
+        .from('token_transactions')
+        .select()
+        .eq('user_id', userId!)
+        .order('created_at', ascending: false)
+        .limit(limit);
+    return List<Map<String, dynamic>>.from(res);
+  }
+
   // ─── Biweekly Insights ─────────────────────────────────
 
   static Future<Map<String, dynamic>?> getLatestInsight() async {

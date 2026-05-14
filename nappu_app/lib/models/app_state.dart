@@ -90,6 +90,7 @@ final Map<String, Color> _appColors = {
 
 class AppState extends ChangeNotifier {
   bool isLoading = true;
+  bool isFirstLaunch = false;
   String? errorMessage;
 
   String userName = 'User';
@@ -328,8 +329,10 @@ class AppState extends ChangeNotifier {
       final now = DateTime.now();
       final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       hasLoggedToday = logDate == todayStr;
+      isFirstLaunch = false;
     } else {
       hasLoggedToday = false;
+      isFirstLaunch = true;
     }
   }
 
@@ -499,6 +502,54 @@ class AppState extends ChangeNotifier {
     lockEnabled = !lockEnabled;
     notifyListeners();
     await SupabaseService.updateAppLockSettings({'enabled': lockEnabled});
+  }
+
+  Future<void> updateLockSchedule({
+    required int startHour,
+    required int startMinute,
+    required int endHour,
+    required int endMinute,
+  }) async {
+    lockStartHour = startHour;
+    lockStartMinute = startMinute;
+    lockEndHour = endHour;
+    lockEndMinute = endMinute;
+    notifyListeners();
+    await SupabaseService.updateAppLockSettings({
+      'lock_start_hour': startHour,
+      'lock_start_minute': startMinute,
+      'lock_end_hour': endHour,
+      'lock_end_minute': endMinute,
+    });
+  }
+
+  Future<void> toggleLockedAppStatus(int index) async {
+    final app = lockedApps[index];
+    final newStatus = app.status == 'Locked' ? 'Reminder' : 'Locked';
+    app.status = newStatus;
+    notifyListeners();
+    await SupabaseService.updateLockedAppStatus(app.name, newStatus);
+  }
+
+  Future<bool> emergencyOverride() async {
+    const cost = 50;
+    if (tokens < cost) return false;
+
+    // Optimistic UI
+    final oldTokens = tokens;
+    tokens -= cost;
+    notifyListeners();
+
+    final res = await SupabaseService.purchaseItem('Override', 'Emergency Unlock', cost);
+    if (res['success'] == true) {
+      tokens = res['new_balance'] as int;
+      notifyListeners();
+      return true;
+    } else {
+      tokens = oldTokens;
+      notifyListeners();
+      return false;
+    }
   }
 
   void setCategory(String category) {

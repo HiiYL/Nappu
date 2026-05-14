@@ -27,6 +27,10 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: 12),
                     _buildErrorBanner(state),
                   ],
+                  if (state.isFirstLaunch) ...[
+                    const SizedBox(height: 16),
+                    _buildWelcomeCard(state),
+                  ],
                   const SizedBox(height: 20),
                   _buildNappuStatus(state),
                   const SizedBox(height: 16),
@@ -58,6 +62,64 @@ class HomeScreen extends StatelessWidget {
             child: Text(
               'Failed to load data. Pull down to retry.',
               style: TextStyle(color: AppColors.red, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWelcomeCard(AppState state) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2a2d5e), Color(0xFF1c2340)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('\ud83d\udc11', style: TextStyle(fontSize: 32)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome to Nappu!',
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Your sleep companion is ready',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            '\u2022 Complete sleep tasks to earn tokens\n\u2022 Log your sleep each morning\n\u2022 Use tokens to dress up Nappu\n\u2022 Set app locks to build better habits',
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              height: 1.6,
             ),
           ),
         ],
