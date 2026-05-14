@@ -5,8 +5,10 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.app.usage.UsageStatsManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.PixelFormat
@@ -14,6 +16,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.LinearLayout
@@ -25,8 +28,7 @@ class AppLockService : Service() {
     companion object {
         private const val CHANNEL_ID = "nappu_app_lock"
         private const val NOTIFICATION_ID = 1001
-        private const val POLL_INTERVAL_MS = 500L      // during lock window
-        private const val IDLE_INTERVAL_MS = 60_000L  // outside lock window
+        private const val POLL_INTERVAL_MS = 500L
         private const val PREFS_NAME = "nappu_app_lock"
         private const val KEY_PACKAGES = "packages"
         private const val KEY_START_HOUR = "startHour"
@@ -82,19 +84,44 @@ class AppLockService : Service() {
     private var windowManager: WindowManager? = null
     private var overlayView: LinearLayout? = null
     private var currentlyBlocked: String? = null
+    private var screenOn = true
+    private var lastForeground: String? = null      // for skip-duplicate optimisation
+    private var lastKnownForeground: String? = null  // persists across empty queryEvents windows
+
+    // Pause polling when screen is off — user can't launch apps with screen off
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                Intent.ACTION_SCREEN_OFF -> {
+                    screenOn = false
+                    handler.removeCallbacks(pollRunnable)
+                }
+                Intent.ACTION_SCREEN_ON -> {
+                    screenOn = true
+                    lastForeground = null        // force re-check on wake
+                    lastKnownForeground = null   // force fresh detection
+                    handler.removeCallbacks(pollRunnable)
+                    handler.post(pollRunnable)
+                }
+            }
+        }
+    }
 
     private val pollRunnable = object : Runnable {
         override fun run() {
+            if (!screenOn) return
+
             if (isWithinLockWindow()) {
                 checkForegroundApp()
                 handler.postDelayed(this, POLL_INTERVAL_MS)
             } else {
-                // Outside lock window — clean up and sleep until next check
+                // Outside lock window — clean up and sleep until window starts
                 if (currentlyBlocked != null) {
                     removeOverlay()
                     currentlyBlocked = null
                 }
-                handler.postDelayed(this, IDLE_INTERVAL_MS)
+                val delay = msUntilLockWindow()
+                if (delay > 0) handler.postDelayed(this, delay)
             }
         }
     }
@@ -103,6 +130,16 @@ class AppLockService : Service() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         createNotificationChannel()
+
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+        }
+        registerReceiver(screenReceiver, filter)
+
+        // Initialise screen state
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        screenOn = pm.isInteractive
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -110,6 +147,7 @@ class AppLockService : Service() {
         val notification = buildNotification()
         startForeground(NOTIFICATION_ID, notification)
         isRunning = true
+        handler.removeCallbacks(pollRunnable)
         handler.post(pollRunnable)
         return START_STICKY
     }
@@ -117,6 +155,7 @@ class AppLockService : Service() {
     override fun onDestroy() {
         isRunning = false
         handler.removeCallbacks(pollRunnable)
+        try { unregisterReceiver(screenReceiver) } catch (_: Exception) {}
         removeOverlay()
         super.onDestroy()
     }
@@ -125,12 +164,21 @@ class AppLockService : Service() {
 
     private fun checkForegroundApp() {
         if (System.currentTimeMillis() < overrideUntil) {
-            removeOverlay()
+            if (currentlyBlocked != null) {
+                removeOverlay()
+                currentlyBlocked = null
+            }
             return
         }
 
-        val foreground = getForegroundPackage()
-        if (foreground != null && lockedPackages.contains(foreground)) {
+        val foreground = getForegroundPackage() ?: return
+
+        // Skip if foreground hasn't changed (avoid redundant work)
+        if (foreground == lastForeground && currentlyBlocked != null && lockedPackages.contains(foreground)) return
+        if (foreground == lastForeground && currentlyBlocked == null && !lockedPackages.contains(foreground)) return
+        lastForeground = foreground
+
+        if (lockedPackages.contains(foreground)) {
             if (currentlyBlocked != foreground) {
                 showOverlay(foreground)
                 currentlyBlocked = foreground
@@ -144,9 +192,10 @@ class AppLockService : Service() {
     }
 
     private fun getForegroundPackage(): String? {
-        val usm = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return null
+        val usm = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return lastKnownForeground
         val now = System.currentTimeMillis()
-        val events = usm.queryEvents(now - 2000, now)
+        val events = usm.queryEvents(now - 5000, now)
         var foreground: String? = null
         val event = android.app.usage.UsageEvents.Event()
         while (events.hasNextEvent()) {
@@ -155,7 +204,8 @@ class AppLockService : Service() {
                 foreground = event.packageName
             }
         }
-        return foreground
+        if (foreground != null) lastKnownForeground = foreground
+        return lastKnownForeground
     }
 
     private fun isWithinLockWindow(): Boolean {
@@ -170,6 +220,15 @@ class AppLockService : Service() {
         } else {
             now >= start || now < end
         }
+    }
+
+    private fun msUntilLockWindow(): Long {
+        val cal = java.util.Calendar.getInstance()
+        val nowMin = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+        val start = lockStartHour * 60 + lockStartMinute
+        val diffMin = if (start > nowMin) start - nowMin else (1440 - nowMin) + start
+        val nowSec = cal.get(java.util.Calendar.SECOND)
+        return (diffMin * 60L - nowSec) * 1000L
     }
 
     private fun showOverlay(packageName: String) {
