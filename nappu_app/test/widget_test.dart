@@ -76,6 +76,24 @@ void main() {
       state.lockEndMinute = 0;
       expect(state.lockDurationText, '8 hours');
     });
+
+    test('15 minutes = 0.3 hours', () {
+      final state = AppState();
+      state.lockStartHour = 22;
+      state.lockStartMinute = 0;
+      state.lockEndHour = 22;
+      state.lockEndMinute = 15;
+      expect(state.lockDurationText, '0.3 hours');
+    });
+
+    test('45 minutes past = 8.8 hours', () {
+      final state = AppState();
+      state.lockStartHour = 22;
+      state.lockStartMinute = 0;
+      state.lockEndHour = 6;
+      state.lockEndMinute = 45;
+      expect(state.lockDurationText, '8.8 hours');
+    });
   });
 
   // ─── Computed quality/mood labels ────────────────────────

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/supabase_service.dart';
 import '../services/app_lock_native.dart';
@@ -126,6 +127,18 @@ class AppState extends ChangeNotifier {
   bool isLoading = true;
   bool isFirstLaunch = false;
   String? errorMessage;
+  Timer? _errorDismissTimer;
+  final Set<String> _busy = {};
+  bool isBusy(String key) => _busy.contains(key);
+
+  void _setError(String msg) {
+    errorMessage = msg;
+    _errorDismissTimer?.cancel();
+    _errorDismissTimer = Timer(const Duration(seconds: 4), () {
+      errorMessage = null;
+      notifyListeners();
+    });
+  }
 
   String userName = 'User';
   int tokens = 0;
@@ -253,10 +266,9 @@ class AppState extends ChangeNotifier {
     final startMin = lockStartHour * 60 + lockStartMinute;
     final endMin = lockEndHour * 60 + lockEndMinute;
     final diff = endMin > startMin ? endMin - startMin : (1440 - startMin) + endMin;
-    final h = diff ~/ 60;
-    final m = diff % 60;
-    if (m == 0) return '$h hours';
-    return '$h.${(m * 10 ~/ 60)} hours';
+    final hours = diff / 60;
+    if (hours == hours.roundToDouble()) return '${hours.toInt()} hours';
+    return '${hours.toStringAsFixed(1)} hours';
   }
 
   // ─── Load all data from Supabase ───────────────────────
@@ -276,7 +288,7 @@ class AppState extends ChangeNotifier {
       ]);
       errorMessage = null;
     } catch (e) {
-      errorMessage = e.toString();
+      _setError(e.toString());
       _loadDefaults();
     }
 
@@ -390,14 +402,14 @@ class AppState extends ChangeNotifier {
   Future<void> _loadWeeklyData() async {
     final logs = await SupabaseService.getWeeklySleepLogs();
     const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    final now = DateTime.now();
+    final now = DateTime.now().toUtc();
 
     weeklyData = List.generate(7, (i) {
       final date = now.subtract(Duration(days: 6 - i));
       final dayIdx = (date.weekday - 1) % 7;
       final dateStr =
           '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      final log = logs.where((l) => l['log_date'] == dateStr).firstOrNull;
+      final log = logs.where((l) => (l['log_date'] as String).startsWith(dateStr)).firstOrNull;
       final hours = log != null ? (log['duration_hours'] as num).toDouble() : 0.0;
       return {
         'day': dayLabels[dayIdx],
@@ -515,27 +527,35 @@ class AppState extends ChangeNotifier {
 
   Future<void> toggleTask(int index) async {
     final task = sleepTasks[index];
+    final taskId = task['id'];
+    if (taskId == null) return;
+    final busyKey = 'task_$taskId';
+    if (_busy.contains(busyKey)) return;
+    _busy.add(busyKey);
+
     final newDone = !(task['done'] as bool);
     final coins = task['coins'] as int;
 
-    // Optimistic UI update
     sleepTasks[index]['done'] = newDone;
     tokens += newDone ? coins : -coins;
+    errorMessage = null;
     notifyListeners();
 
-    // Server-side RPC handles tokens atomically
-    final taskId = task['id'];
-    if (taskId != null) {
+    try {
       final res = await SupabaseService.toggleTask(taskId as int, newDone);
       if (res['success'] == true) {
         tokens = res['new_balance'] as int;
         notifyListeners();
       } else {
-        // Revert on failure
-        sleepTasks[index]['done'] = !newDone;
-        tokens += newDone ? -coins : coins;
-        notifyListeners();
+        throw Exception(res['error'] ?? 'Task toggle failed');
       }
+    } catch (e) {
+      sleepTasks[index]['done'] = !newDone;
+      tokens += newDone ? -coins : coins;
+      _setError(e.toString());
+      notifyListeners();
+    } finally {
+      _busy.remove(busyKey);
     }
   }
 
@@ -545,6 +565,8 @@ class AppState extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>> logSleep() async {
+    if (_busy.contains('logSleep')) return {'success': false, 'error': 'Already saving'};
+    _busy.add('logSleep');
     final duration = sleepDuration;
     final oldLastNightSleep = lastNightSleep;
     final oldHasLoggedToday = hasLoggedToday;
@@ -592,9 +614,11 @@ class AppState extends ChangeNotifier {
       streak = oldStreak;
       nappuXp = oldNappuXp;
       nappuLevel = oldNappuLevel;
-      errorMessage = e.toString();
+      _setError(e.toString());
       notifyListeners();
       return {'success': false, 'error': e.toString()};
+    } finally {
+      _busy.remove('logSleep');
     }
   }
 
@@ -609,6 +633,8 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> toggleLock() async {
+    if (_busy.contains('toggleLock')) return;
+    _busy.add('toggleLock');
     final oldEnabled = lockEnabled;
     lockEnabled = !lockEnabled;
     errorMessage = null;
@@ -618,8 +644,10 @@ class AppState extends ChangeNotifier {
       await _syncNativeLock();
     } catch (e) {
       lockEnabled = oldEnabled;
-      errorMessage = e.toString();
+      _setError(e.toString());
       notifyListeners();
+    } finally {
+      _busy.remove('toggleLock');
     }
   }
 
@@ -652,7 +680,7 @@ class AppState extends ChangeNotifier {
       lockStartMinute = oldStartMinute;
       lockEndHour = oldEndHour;
       lockEndMinute = oldEndMinute;
-      errorMessage = e.toString();
+      _setError(e.toString());
       notifyListeners();
     }
   }
@@ -678,7 +706,7 @@ class AppState extends ChangeNotifier {
       await _syncNativeLock();
     } catch (e) {
       lockedApps.remove(app);
-      errorMessage = e.toString();
+      _setError(e.toString());
       notifyListeners();
     }
   }
@@ -692,7 +720,7 @@ class AppState extends ChangeNotifier {
       await _syncNativeLock();
     } catch (e) {
       lockedApps.insert(index, app);
-      errorMessage = e.toString();
+      _setError(e.toString());
       notifyListeners();
     }
   }
@@ -709,7 +737,7 @@ class AppState extends ChangeNotifier {
       await _syncNativeLock();
     } catch (e) {
       app.status = oldStatus;
-      errorMessage = e.toString();
+      _setError(e.toString());
       notifyListeners();
     }
   }
@@ -717,6 +745,8 @@ class AppState extends ChangeNotifier {
   Future<bool> emergencyOverride() async {
     const cost = 50;
     if (tokens < cost) return false;
+    if (_busy.contains('override')) return false;
+    _busy.add('override');
 
     final oldTokens = tokens;
     tokens -= cost;
@@ -736,9 +766,11 @@ class AppState extends ChangeNotifier {
       return false;
     } catch (e) {
       tokens = oldTokens;
-      errorMessage = e.toString();
+      _setError(e.toString());
       notifyListeners();
       return false;
+    } finally {
+      _busy.remove('override');
     }
   }
 
@@ -755,6 +787,9 @@ class AppState extends ChangeNotifier {
 
   Future<void> purchaseItem(ShopItem item, String category) async {
     if (tokens < item.price) return;
+    final busyKey = 'purchase_${item.name}';
+    if (_busy.contains(busyKey)) return;
+    _busy.add(busyKey);
 
     // Optimistic UI
     final oldTokens = tokens;
@@ -772,17 +807,27 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     // Server-side RPC checks balance + deducts atomically
-    final res = await SupabaseService.purchaseItem(category, item.name, item.price);
-    if (res['success'] == true) {
-      tokens = res['new_balance'] as int;
-      notifyListeners();
-    } else {
-      // Revert on failure
+    try {
+      final res = await SupabaseService.purchaseItem(category, item.name, item.price);
+      if (res['success'] == true) {
+        tokens = res['new_balance'] as int;
+        notifyListeners();
+      } else {
+        tokens = oldTokens;
+        if (idx != -1) {
+          list[idx] = item.copyWith(owned: false);
+        }
+        notifyListeners();
+      }
+    } catch (e) {
       tokens = oldTokens;
       if (idx != -1) {
         list[idx] = item.copyWith(owned: false);
       }
+      _setError(e.toString());
       notifyListeners();
+    } finally {
+      _busy.remove(busyKey);
     }
   }
 
