@@ -287,12 +287,16 @@ create policy "Users update own profile (safe fields)" on public.profiles
 -- Revoke direct insert on token_transactions from anon/authenticated
 -- (RPC functions run as security definer so they bypass this)
 drop policy if exists "Users insert own transactions" on public.token_transactions;
+drop policy if exists "Users read own transactions" on public.token_transactions;
 create policy "Users read own transactions" on public.token_transactions
   for select using (auth.uid() = user_id);
 -- No insert policy = client cannot directly insert token_transactions
 
 -- Block direct insert on biweekly_insights from client
 drop policy if exists "Users insert own insights" on public.biweekly_insights;
+drop policy if exists "Users read own insights" on public.biweekly_insights;
+create policy "Users read own insights" on public.biweekly_insights
+  for select using (auth.uid() = user_id);
 -- Only RPC generate_biweekly_insight() can insert (security definer)
 
 -- Block client from directly updating sleep_tasks.completed
