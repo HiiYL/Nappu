@@ -364,11 +364,12 @@ class AppState extends ChangeNotifier {
       final q = lastLog['quality'] as String;
       sleepQualityPercent = q == 'Great' ? 95 : q == 'Good' ? 84 : q == 'Okay' ? 60 : 40;
 
-      // Check if already logged today
+      // Check if already logged today — compare against UTC date
+      // because the server RPC uses current_date which is UTC
       final logDate = lastLog['log_date'] as String;
-      final now = DateTime.now();
+      final now = DateTime.now().toUtc();
       final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      hasLoggedToday = logDate == todayStr;
+      hasLoggedToday = logDate.startsWith(todayStr);
       isFirstLaunch = false;
     } else {
       hasLoggedToday = false;
