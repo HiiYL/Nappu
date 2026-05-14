@@ -28,6 +28,25 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
+  Future<void> _continueAsGuest() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final res = await SupabaseService.signInAnonymously();
+      if (res.user != null) {
+        widget.onAuthSuccess();
+      } else {
+        setState(() => _error = 'Could not create guest account');
+      }
+    } catch (e) {
+      setState(() => _error = e.toString().replaceAll('AuthException: ', ''));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _submit() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -236,6 +255,55 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                 ],
+              ),
+
+              const SizedBox(height: 28),
+
+              // Divider
+              Row(
+                children: [
+                  Expanded(child: Container(height: 1, color: AppColors.cardBorder)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14),
+                    child: Text(
+                      'or',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    ),
+                  ),
+                  Expanded(child: Container(height: 1, color: AppColors.cardBorder)),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Guest button
+              GestureDetector(
+                onTap: _isLoading ? null : _continueAsGuest,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.cardBorder, width: 1),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Continue as Guest',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'No account needed — you can upgrade later',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                textAlign: TextAlign.center,
               ),
 
               const SizedBox(height: 40),

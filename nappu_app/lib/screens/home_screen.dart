@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_theme.dart';
 import '../models/app_state.dart';
 import '../services/supabase_service.dart';
@@ -27,6 +28,10 @@ class HomeScreen extends StatelessWidget {
                   if (state.errorMessage != null) ...[
                     const SizedBox(height: 12),
                     _buildErrorBanner(state),
+                  ],
+                  if (SupabaseService.isAnonymous) ...[
+                    const SizedBox(height: 12),
+                    _buildGuestBanner(context),
                   ],
                   if (state.isFirstLaunch) ...[
                     const SizedBox(height: 16),
@@ -67,6 +72,144 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildGuestBanner(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showUpgradeDialog(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.accent.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.person_outline, color: AppColors.accent, size: 20),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Guest account — tap to save your progress',
+                style: TextStyle(color: AppColors.accent, fontSize: 13),
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, color: AppColors.accent, size: 14),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showUpgradeDialog(BuildContext context) {
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    String? error;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.card,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text(
+                'Save Your Progress',
+                style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Add an email and password to keep your tokens, streak, and Nappu items.',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Email address',
+                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Password (min 6 chars)',
+                      hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                  if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Text(error!, style: const TextStyle(color: AppColors.red, fontSize: 12)),
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Later', style: TextStyle(color: AppColors.textMuted)),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final email = emailController.text.trim();
+                    final password = passwordController.text.trim();
+                    if (email.isEmpty || password.isEmpty) {
+                      setDialogState(() => error = 'Please fill in both fields');
+                      return;
+                    }
+                    if (password.length < 6) {
+                      setDialogState(() => error = 'Password must be at least 6 characters');
+                      return;
+                    }
+                    try {
+                      await SupabaseService.client.auth.updateUser(
+                        UserAttributes(email: email, password: password),
+                      );
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text('🎉 Account saved! You can now sign in with email.'),
+                            backgroundColor: AppColors.green,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      setDialogState(() => error = e.toString().replaceAll('AuthException: ', ''));
+                    }
+                  },
+                  child: const Text('Save', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

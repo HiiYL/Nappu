@@ -29,6 +29,12 @@ class SupabaseService {
     );
   }
 
+  static Future<AuthResponse> signInAnonymously() async {
+    return await client.auth.signInAnonymously();
+  }
+
+  static bool get isAnonymous => currentUser?.isAnonymous ?? false;
+
   static Future<void> signOut() async {
     await client.auth.signOut();
   }
