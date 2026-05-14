@@ -3,6 +3,7 @@ package com.example.nappu_app
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.app.usage.UsageStatsManager
 import android.content.BroadcastReceiver
@@ -39,6 +40,7 @@ class AppLockService : Service() {
         var lockedPackages: MutableSet<String> = mutableSetOf()
         var isRunning = false
         var overrideUntil: Long = 0
+        private const val KEY_OVERRIDE_UNTIL = "overrideUntil"
         var lockStartHour = 22
         var lockStartMinute = 30
         var lockEndHour = 7
@@ -74,6 +76,12 @@ class AppLockService : Service() {
             lockStartMinute = prefs.getInt(KEY_START_MINUTE, 30)
             lockEndHour = prefs.getInt(KEY_END_HOUR, 7)
             lockEndMinute = prefs.getInt(KEY_END_MINUTE, 0)
+            overrideUntil = prefs.getLong(KEY_OVERRIDE_UNTIL, 0)
+        }
+
+        fun setOverrideUntil(context: Context, until: Long) {
+            overrideUntil = until
+            prefs(context).edit().putLong(KEY_OVERRIDE_UNTIL, until).apply()
         }
 
         private fun prefs(context: Context): SharedPreferences =
@@ -204,7 +212,10 @@ class AppLockService : Service() {
                 foreground = event.packageName
             }
         }
-        if (foreground != null) lastKnownForeground = foreground
+        if (foreground != null) {
+            // Ignore own package — our overlay/app shouldn't count
+            if (foreground != packageName) lastKnownForeground = foreground
+        }
         return lastKnownForeground
     }
 
@@ -296,6 +307,8 @@ class AppLockService : Service() {
             setOnClickListener {
                 removeOverlay()
                 currentlyBlocked = null
+                lastForeground = null
+                lastKnownForeground = null
                 val intent = Intent(Intent.ACTION_MAIN).apply {
                     addCategory(Intent.CATEGORY_HOME)
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -318,6 +331,8 @@ class AppLockService : Service() {
             setOnClickListener {
                 removeOverlay()
                 currentlyBlocked = null
+                lastForeground = null
+                lastKnownForeground = null
                 val intent = packageManager.getLaunchIntentForPackage(this@AppLockService.packageName)
                 intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
@@ -370,12 +385,18 @@ class AppLockService : Service() {
     }
 
     private fun buildNotification(): Notification {
+        val tapIntent = packageManager.getLaunchIntentForPackage(packageName)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, tapIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Nappu App Lock")
             .setContentText("Protecting your sleep time")
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
+            .setContentIntent(pendingIntent)
             .build()
     }
 }

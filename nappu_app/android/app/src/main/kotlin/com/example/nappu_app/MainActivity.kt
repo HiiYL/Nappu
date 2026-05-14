@@ -70,7 +70,7 @@ class MainActivity : FlutterActivity() {
                 }
                 "emergencyOverride" -> {
                     val durationMs = call.argument<Int>("durationMs") ?: 900000
-                    AppLockService.overrideUntil = System.currentTimeMillis() + durationMs
+                    AppLockService.setOverrideUntil(this, System.currentTimeMillis() + durationMs)
                     result.success(true)
                 }
                 else -> result.notImplemented()
