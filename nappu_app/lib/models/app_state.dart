@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/supabase_service.dart';
+import '../services/app_lock_native.dart';
 
 class SleepLog {
   final DateTime date;
@@ -19,12 +20,14 @@ class SleepLog {
 
 class LockedApp {
   final String name;
+  final String packageName;
   final IconData icon;
   final Color iconColor;
   String status;
 
   LockedApp({
     required this.name,
+    required this.packageName,
     required this.icon,
     required this.iconColor,
     required this.status,
@@ -86,6 +89,12 @@ final Map<String, Color> _appColors = {
   'TikTok': const Color(0xFF69c9d0),
   'WhatsApp': const Color(0xFF25d366),
   'YouTube': const Color(0xFFff0000),
+};
+final Map<String, String> _appPackages = {
+  'Instagram': 'com.instagram.android',
+  'TikTok': 'com.zhiliaoapp.musically',
+  'WhatsApp': 'com.whatsapp',
+  'YouTube': 'com.google.android.youtube',
 };
 
 class AppState extends ChangeNotifier {
@@ -267,10 +276,10 @@ class AppState extends ChangeNotifier {
       {'day': 'S', 'hours': 0.0, 'ideal': false},
     ];
     lockedApps = [
-      LockedApp(name: 'Instagram', icon: Icons.camera_alt, iconColor: const Color(0xFFe1306c), status: 'Locked'),
-      LockedApp(name: 'TikTok', icon: Icons.music_note, iconColor: const Color(0xFF69c9d0), status: 'Locked'),
-      LockedApp(name: 'WhatsApp', icon: Icons.chat_bubble, iconColor: const Color(0xFF25d366), status: 'Reminder'),
-      LockedApp(name: 'YouTube', icon: Icons.play_arrow, iconColor: const Color(0xFFff0000), status: 'Locked'),
+      LockedApp(name: 'Instagram', packageName: 'com.instagram.android', icon: Icons.camera_alt, iconColor: const Color(0xFFe1306c), status: 'Locked'),
+      LockedApp(name: 'TikTok', packageName: 'com.zhiliaoapp.musically', icon: Icons.music_note, iconColor: const Color(0xFF69c9d0), status: 'Locked'),
+      LockedApp(name: 'WhatsApp', packageName: 'com.whatsapp', icon: Icons.chat_bubble, iconColor: const Color(0xFF25d366), status: 'Reminder'),
+      LockedApp(name: 'YouTube', packageName: 'com.google.android.youtube', icon: Icons.play_arrow, iconColor: const Color(0xFFff0000), status: 'Locked'),
     ];
     _loadDefaultShopItems();
     biweeklyInsight = '';
@@ -381,11 +390,33 @@ class AppState extends ChangeNotifier {
       final name = a['app_name'] as String;
       return LockedApp(
         name: name,
+        packageName: _appPackages[name] ?? '',
         icon: _appIcons[name] ?? Icons.apps,
         iconColor: _appColors[name] ?? Colors.grey,
         status: a['status'] as String,
       );
     }).toList();
+
+    // Sync native service if Android
+    _syncNativeLock();
+  }
+
+  List<String> get _lockedPackageNames =>
+      lockedApps.where((a) => a.status == 'Locked').map((a) => a.packageName).where((p) => p.isNotEmpty).toList();
+
+  Future<void> _syncNativeLock() async {
+    if (!AppLockNative.isAndroid) return;
+    if (lockEnabled && _lockedPackageNames.isNotEmpty) {
+      final running = await AppLockNative.isAppLockRunning();
+      if (running) {
+        await AppLockNative.updateLockedPackages(_lockedPackageNames);
+      } else {
+        await AppLockNative.startAppLock(_lockedPackageNames);
+      }
+    } else {
+      final running = await AppLockNative.isAppLockRunning();
+      if (running) await AppLockNative.stopAppLock();
+    }
   }
 
   Future<void> _loadInventory() async {
@@ -502,6 +533,7 @@ class AppState extends ChangeNotifier {
     lockEnabled = !lockEnabled;
     notifyListeners();
     await SupabaseService.updateAppLockSettings({'enabled': lockEnabled});
+    _syncNativeLock();
   }
 
   Future<void> updateLockSchedule({
@@ -529,6 +561,7 @@ class AppState extends ChangeNotifier {
     app.status = newStatus;
     notifyListeners();
     await SupabaseService.updateLockedAppStatus(app.name, newStatus);
+    _syncNativeLock();
   }
 
   Future<bool> emergencyOverride() async {
@@ -544,6 +577,8 @@ class AppState extends ChangeNotifier {
     if (res['success'] == true) {
       tokens = res['new_balance'] as int;
       notifyListeners();
+      // 15-minute native override
+      AppLockNative.emergencyOverride(durationMs: 15 * 60 * 1000);
       return true;
     } else {
       tokens = oldTokens;

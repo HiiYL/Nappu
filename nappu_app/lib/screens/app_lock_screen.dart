@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/app_state.dart';
+import '../services/app_lock_native.dart';
 
 class AppLockScreen extends StatefulWidget {
   const AppLockScreen({super.key});
@@ -11,6 +13,32 @@ class AppLockScreen extends StatefulWidget {
 }
 
 class _AppLockScreenState extends State<AppLockScreen> {
+  bool _hasUsagePermission = false;
+  bool _hasOverlayPermission = false;
+  bool _checkedPermissions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    if (!AppLockNative.isAndroid) {
+      setState(() => _checkedPermissions = true);
+      return;
+    }
+    final usage = await AppLockNative.hasUsageStatsPermission();
+    final overlay = await AppLockNative.hasOverlayPermission();
+    if (mounted) {
+      setState(() {
+        _hasUsagePermission = usage;
+        _hasOverlayPermission = overlay;
+        _checkedPermissions = true;
+      });
+    }
+  }
+
   Future<void> _pickScheduleTime(AppState state, {required bool isStart}) async {
     final initial = isStart
         ? TimeOfDay(hour: state.lockStartHour, minute: state.lockStartMinute)
@@ -124,6 +152,10 @@ class _AppLockScreenState extends State<AppLockScreen> {
                       fontSize: 13,
                     ),
                   ),
+                  if (AppLockNative.isAndroid && _checkedPermissions && (!_hasUsagePermission || !_hasOverlayPermission)) ...[                  
+                    const SizedBox(height: 12),
+                    _buildPermissionBanner(),
+                  ],
                   const SizedBox(height: 20),
                   _buildScheduleCard(state),
                   const SizedBox(height: 16),
@@ -138,6 +170,90 @@ class _AppLockScreenState extends State<AppLockScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildPermissionBanner() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.gold.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.warning_amber, color: AppColors.gold, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Setup Required',
+                style: TextStyle(
+                  color: AppColors.gold,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Nappu needs permissions to block apps during bedtime.',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          if (!_hasUsagePermission)
+            _buildPermissionButton(
+              'Usage Access',
+              'Detect which app is open',
+              () async {
+                await AppLockNative.requestUsageStatsPermission();
+                // Re-check after user returns
+                Future.delayed(const Duration(seconds: 2), _checkPermissions);
+              },
+            ),
+          if (!_hasOverlayPermission) ...[
+            if (!_hasUsagePermission) const SizedBox(height: 8),
+            _buildPermissionButton(
+              'Display Over Apps',
+              'Show lock screen overlay',
+              () async {
+                await AppLockNative.requestOverlayPermission();
+                Future.delayed(const Duration(seconds: 2), _checkPermissions);
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPermissionButton(String title, String subtitle, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text(subtitle, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                ],
+              ),
+            ),
+            const Icon(Icons.open_in_new, color: AppColors.accent, size: 18),
+          ],
+        ),
+      ),
     );
   }
 
