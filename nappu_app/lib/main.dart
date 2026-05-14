@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config/supabase_config.dart';
 import 'theme/app_theme.dart';
 import 'models/app_state.dart';
+import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/sleep_log_screen.dart';
 import 'screens/app_lock_screen.dart';
 import 'screens/nappu_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(
@@ -17,6 +20,12 @@ void main() {
       statusBarIconBrightness: Brightness.light,
     ),
   );
+
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    anonKey: SupabaseConfig.supabaseAnonKey,
+  );
+
   runApp(const NappuApp());
 }
 
@@ -31,9 +40,95 @@ class NappuApp extends StatelessWidget {
         title: 'Nappu',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const MainShell(),
+        home: const AuthGate(),
       ),
     );
+  }
+}
+
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  @override
+  void initState() {
+    super.initState();
+    // Listen for auth state changes
+    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _onAuthSuccess() {
+    setState(() {});
+    // Load data after auth
+    final appState = Provider.of<AppState>(context, listen: false);
+    appState.loadAll();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = Supabase.instance.client.auth.currentSession;
+
+    if (session == null) {
+      return AuthScreen(onAuthSuccess: _onAuthSuccess);
+    }
+
+    return const _DataLoader();
+  }
+}
+
+class _DataLoader extends StatefulWidget {
+  const _DataLoader();
+
+  @override
+  State<_DataLoader> createState() => _DataLoaderState();
+}
+
+class _DataLoaderState extends State<_DataLoader> {
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final appState = Provider.of<AppState>(context, listen: false);
+    await appState.loadAll();
+    if (mounted) setState(() => _initialized = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('🐑', style: TextStyle(fontSize: 56)),
+              SizedBox(height: 16),
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: AppColors.accent,
+                  strokeWidth: 2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return const MainShell();
   }
 }
 

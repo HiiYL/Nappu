@@ -38,6 +38,7 @@ dependencies:
   fl_chart: ^1.2.0
   shared_preferences: ^2.5.5
   provider: ^6.1.5+1
+  supabase_flutter: ^2.12.4
 
 dev_dependencies:
   flutter_test:

@@ -43,7 +43,7 @@ class SleepLogScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 _buildWeeklyChart(state),
                 const SizedBox(height: 20),
-                _buildBiweeklyInsight(),
+                _buildBiweeklyInsight(state),
               ],
             ),
           ),
@@ -353,7 +353,7 @@ class SleepLogScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBiweeklyInsight() {
+  Widget _buildBiweeklyInsight(AppState state) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -374,17 +374,14 @@ class SleepLogScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          RichText(
-            text: const TextSpan(
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 14, height: 1.5),
-              children: [
-                TextSpan(text: 'Your average sleep is '),
-                TextSpan(
-                  text: '7.2 hrs',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                TextSpan(text: ' — slightly below ideal. Try sleeping 20 min earlier on weekdays. 🌙'),
-              ],
+          Text(
+            state.biweeklyInsight.isNotEmpty
+                ? state.biweeklyInsight
+                : 'Your average sleep is 7.2 hrs — slightly below ideal. Try sleeping 20 min earlier on weekdays. 🌙',
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              height: 1.5,
             ),
           ),
         ],

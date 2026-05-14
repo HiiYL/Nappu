@@ -349,11 +349,7 @@ class NappuScreen extends StatelessWidget {
             return Expanded(
               child: GestureDetector(
                 onTap: () {
-                  for (var t in state.roomThemes) {
-                    t['selected'] = false;
-                  }
-                  theme['selected'] = true;
-                  state.notifyListeners();
+                  state.selectRoomTheme(theme['name'] as String);
                 },
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 4),
