@@ -95,7 +95,7 @@ class _DataLoaderState extends State<_DataLoader> {
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
 
   Future<void> _load() async {

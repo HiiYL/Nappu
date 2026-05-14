@@ -132,7 +132,8 @@ class HomeScreen extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
+        Flexible(
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
@@ -144,12 +145,15 @@ class HomeScreen extends StatelessWidget {
             ),
             Row(
               children: [
-                Text(
-                  state.userName,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Text(
+                    state.userName,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -199,6 +203,7 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
           ],
+        ),
         ),
         Row(
           children: [
