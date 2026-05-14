@@ -248,6 +248,8 @@ class AppLockAccessibilityService : AccessibilityService() {
                 cornerRadius = dp(12).toFloat()
             }
             setOnClickListener {
+                removeOverlay()
+                currentlyBlocked = null
                 performGlobalAction(GLOBAL_ACTION_HOME)
             }
         }

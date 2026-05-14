@@ -1,10 +1,12 @@
 package com.example.nappu_app
 
-import android.accessibilityservice.AccessibilityServiceInfo
+import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Process
 import android.provider.Settings
-import android.view.accessibility.AccessibilityManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -17,16 +19,45 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
-                "hasAccessibilityPermission" -> {
-                    result.success(isAccessibilityEnabled())
+                "hasUsageStatsPermission" -> {
+                    result.success(hasUsageStatsPermission())
                 }
-                "requestAccessibilityPermission" -> {
-                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                "requestUsageStatsPermission" -> {
+                    startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                    result.success(null)
+                }
+                "hasOverlayPermission" -> {
+                    result.success(Settings.canDrawOverlays(this))
+                }
+                "requestOverlayPermission" -> {
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")
+                    )
                     startActivity(intent)
                     result.success(null)
                 }
+                "startAppLock" -> {
+                    val packages = call.argument<List<String>>("packages") ?: emptyList()
+                    val startHour = call.argument<Int>("startHour") ?: 22
+                    val startMinute = call.argument<Int>("startMinute") ?: 30
+                    val endHour = call.argument<Int>("endHour") ?: 7
+                    val endMinute = call.argument<Int>("endMinute") ?: 0
+                    AppLockService.updateConfig(this, packages, startHour, startMinute, endHour, endMinute)
+                    val intent = Intent(this, AppLockService::class.java)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(intent)
+                    } else {
+                        startService(intent)
+                    }
+                    result.success(true)
+                }
+                "stopAppLock" -> {
+                    stopService(Intent(this, AppLockService::class.java))
+                    result.success(true)
+                }
                 "isAppLockRunning" -> {
-                    result.success(AppLockAccessibilityService.isRunning)
+                    result.success(AppLockService.isRunning)
                 }
                 "updateAppLockConfig" -> {
                     val packages = call.argument<List<String>>("packages") ?: emptyList()
@@ -34,20 +65,12 @@ class MainActivity : FlutterActivity() {
                     val startMinute = call.argument<Int>("startMinute") ?: 30
                     val endHour = call.argument<Int>("endHour") ?: 7
                     val endMinute = call.argument<Int>("endMinute") ?: 0
-                    AppLockAccessibilityService.updateConfig(
-                        this, packages, startHour, startMinute, endHour, endMinute
-                    )
-                    result.success(true)
-                }
-                "setAppLockEnabled" -> {
-                    val enabled = call.argument<Boolean>("enabled") ?: false
-                    AppLockAccessibilityService.setEnabled(this, enabled)
+                    AppLockService.updateConfig(this, packages, startHour, startMinute, endHour, endMinute)
                     result.success(true)
                 }
                 "emergencyOverride" -> {
                     val durationMs = call.argument<Int>("durationMs") ?: 900000
-                    val until = System.currentTimeMillis() + durationMs
-                    AppLockAccessibilityService.setOverrideUntil(this, until)
+                    AppLockService.overrideUntil = System.currentTimeMillis() + durationMs
                     result.success(true)
                 }
                 else -> result.notImplemented()
@@ -55,13 +78,13 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun isAccessibilityEnabled(): Boolean {
-        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-        val enabled = am.getEnabledAccessibilityServiceList(
-            AccessibilityServiceInfo.FEEDBACK_GENERIC
+    private fun hasUsageStatsPermission(): Boolean {
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = appOps.unsafeCheckOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            Process.myUid(),
+            packageName
         )
-        return enabled.any {
-            it.resolveInfo.serviceInfo.name == AppLockAccessibilityService::class.java.name
-        }
+        return mode == AppOpsManager.MODE_ALLOWED
     }
 }

@@ -6,23 +6,63 @@ class AppLockNative {
 
   static bool get isAndroid => defaultTargetPlatform == TargetPlatform.android;
 
-  // ─── Accessibility permission ─────────────────────────
-
-  static Future<bool> hasAccessibilityPermission() async {
+  static Future<bool> hasUsageStatsPermission() async {
     if (!isAndroid) return false;
     try {
-      return await _channel.invokeMethod<bool>('hasAccessibilityPermission') ?? false;
+      return await _channel.invokeMethod<bool>('hasUsageStatsPermission') ?? false;
     } catch (_) {
       return false;
     }
   }
 
-  static Future<void> requestAccessibilityPermission() async {
+  static Future<void> requestUsageStatsPermission() async {
     if (!isAndroid) return;
-    await _channel.invokeMethod('requestAccessibilityPermission');
+    await _channel.invokeMethod('requestUsageStatsPermission');
   }
 
-  // ─── Service status ───────────────────────────────────
+  static Future<bool> hasOverlayPermission() async {
+    if (!isAndroid) return false;
+    try {
+      return await _channel.invokeMethod<bool>('hasOverlayPermission') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> requestOverlayPermission() async {
+    if (!isAndroid) return;
+    await _channel.invokeMethod('requestOverlayPermission');
+  }
+
+  static Future<bool> startAppLock(
+    List<String> packages, {
+    required int startHour,
+    required int startMinute,
+    required int endHour,
+    required int endMinute,
+  }) async {
+    if (!isAndroid) return false;
+    try {
+      return await _channel.invokeMethod<bool>('startAppLock', {
+        'packages': packages,
+        'startHour': startHour,
+        'startMinute': startMinute,
+        'endHour': endHour,
+        'endMinute': endMinute,
+      }) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> stopAppLock() async {
+    if (!isAndroid) return false;
+    try {
+      return await _channel.invokeMethod<bool>('stopAppLock') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
 
   static Future<bool> isAppLockRunning() async {
     if (!isAndroid) return false;
@@ -32,8 +72,6 @@ class AppLockNative {
       return false;
     }
   }
-
-  // ─── Config (writes to SharedPreferences) ─────────────
 
   static Future<bool> updateAppLockConfig(
     List<String> packages, {
@@ -50,17 +88,6 @@ class AppLockNative {
         'startMinute': startMinute,
         'endHour': endHour,
         'endMinute': endMinute,
-      }) ?? false;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  static Future<bool> setAppLockEnabled(bool enabled) async {
-    if (!isAndroid) return false;
-    try {
-      return await _channel.invokeMethod<bool>('setAppLockEnabled', {
-        'enabled': enabled,
       }) ?? false;
     } catch (_) {
       return false;

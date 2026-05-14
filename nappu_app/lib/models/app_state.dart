@@ -476,14 +476,29 @@ class AppState extends ChangeNotifier {
 
   Future<void> _syncNativeLock() async {
     if (!AppLockNative.isAndroid) return;
-    await AppLockNative.setAppLockEnabled(lockEnabled);
-    await AppLockNative.updateAppLockConfig(
-      _lockedPackageNames,
-      startHour: lockStartHour,
-      startMinute: lockStartMinute,
-      endHour: lockEndHour,
-      endMinute: lockEndMinute,
-    );
+    if (lockEnabled && _lockedPackageNames.isNotEmpty) {
+      final running = await AppLockNative.isAppLockRunning();
+      if (running) {
+        await AppLockNative.updateAppLockConfig(
+          _lockedPackageNames,
+          startHour: lockStartHour,
+          startMinute: lockStartMinute,
+          endHour: lockEndHour,
+          endMinute: lockEndMinute,
+        );
+      } else {
+        await AppLockNative.startAppLock(
+          _lockedPackageNames,
+          startHour: lockStartHour,
+          startMinute: lockStartMinute,
+          endHour: lockEndHour,
+          endMinute: lockEndMinute,
+        );
+      }
+    } else {
+      final running = await AppLockNative.isAppLockRunning();
+      if (running) await AppLockNative.stopAppLock();
+    }
   }
 
   Future<void> _loadInventory() async {

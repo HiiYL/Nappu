@@ -175,6 +175,9 @@ class AppLockService : Service() {
     private fun showOverlay(packageName: String) {
         removeOverlay()
 
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -184,7 +187,6 @@ class AppLockService : Service() {
                 @Suppress("DEPRECATION")
                 WindowManager.LayoutParams.TYPE_PHONE,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         )
@@ -194,7 +196,7 @@ class AppLockService : Service() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setBackgroundColor(Color.parseColor("#F00A0E1A"))
-            setPadding(60, 60, 60, 60)
+            setPadding(dp(24), dp(24), dp(24), dp(24))
         }
 
         val emoji = TextView(this).apply {
@@ -211,18 +213,78 @@ class AppLockService : Service() {
         }
 
         val subtitle = TextView(this).apply {
-            text = "This app is locked during your bedtime.\nOpen Nappu to use an emergency override."
+            text = "This app is locked during your bedtime.\nPut down your phone — Nappu believes in you!"
             textSize = 14f
             setTextColor(Color.parseColor("#8E94B0"))
             gravity = Gravity.CENTER
         }
 
+        val buttonRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+
+        val goHomeButton = TextView(this).apply {
+            text = "Go Home"
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding(dp(28), dp(12), dp(28), dp(12))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.parseColor("#2A2F45"))
+                cornerRadius = dp(12).toFloat()
+            }
+            setOnClickListener {
+                removeOverlay()
+                currentlyBlocked = null
+                val intent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(intent)
+            }
+        }
+
+        val openNappuButton = TextView(this).apply {
+            text = "Open Nappu"
+            textSize = 15f
+            setTextColor(Color.parseColor("#7C8AE6"))
+            gravity = Gravity.CENTER
+            setPadding(dp(28), dp(12), dp(28), dp(12))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.parseColor("#1E2236"))
+                cornerRadius = dp(12).toFloat()
+                setStroke(dp(1), Color.parseColor("#7C8AE6"))
+            }
+            setOnClickListener {
+                removeOverlay()
+                currentlyBlocked = null
+                val intent = packageManager.getLaunchIntentForPackage(this@AppLockService.packageName)
+                intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+            }
+        }
+
+        buttonRow.addView(goHomeButton)
+        buttonRow.addView(android.view.View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(12), 0)
+        })
+        buttonRow.addView(openNappuButton)
+
         layout.addView(emoji)
         layout.addView(title)
         layout.addView(subtitle)
+        layout.addView(android.view.View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(32)
+            )
+        })
+        layout.addView(buttonRow)
 
         overlayView = layout
-        windowManager?.addView(layout, params)
+        try {
+            windowManager?.addView(layout, params)
+        } catch (_: Exception) {}
     }
 
     private fun removeOverlay() {
