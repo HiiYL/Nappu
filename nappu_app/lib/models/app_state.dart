@@ -244,6 +244,11 @@ class AppState extends ChangeNotifier {
     return e?.emoji ?? '';
   }
 
+  String get selectedThemeName {
+    final t = roomThemes.where((t) => t['selected'] == true).firstOrNull;
+    return (t?['name'] as String?) ?? 'Night Sky';
+  }
+
   String get lockDurationText {
     final startMin = lockStartHour * 60 + lockStartMinute;
     final endMin = lockEndHour * 60 + lockEndMinute;

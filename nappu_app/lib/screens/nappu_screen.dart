@@ -89,17 +89,47 @@ class _NappuScreenState extends State<NappuScreen> {
     );
   }
 
+  // Theme visual configs
+  static const _themeVisuals = {
+    'Night Sky': {
+      'gradient': [Color(0xFF0d1b3e), Color(0xFF1c2340)],
+      'scenery': '✨🌙⭐',
+      'border': Color(0xFF2a3560),
+    },
+    'Sakura': {
+      'gradient': [Color(0xFF2d1a2e), Color(0xFF3a1f3d)],
+      'scenery': '🌸🌺🌷',
+      'border': Color(0xFF5a3060),
+    },
+    'Mountain': {
+      'gradient': [Color(0xFF1a2a1a), Color(0xFF243524)],
+      'scenery': '⛰️🌲🌿',
+      'border': Color(0xFF3a5040),
+    },
+  };
+
   Widget _buildPetDisplay(AppState state) {
     final progress = state.nappuXp / state.nappuMaxXp;
+    final theme = _themeVisuals[state.selectedThemeName] ?? _themeVisuals['Night Sky']!;
+    final gradientColors = theme['gradient'] as List<Color>;
+    final scenery = theme['scenery'] as String;
+    final borderColor = theme['border'] as Color;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1c2340),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: gradientColors,
+        ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.cardBorder, width: 1),
+        border: Border.all(color: borderColor, width: 1),
       ),
       child: Column(
         children: [
+          // Scenery row
+          Text(scenery, style: const TextStyle(fontSize: 18, letterSpacing: 8)),
           const SizedBox(height: 8),
           Stack(
             alignment: Alignment.center,

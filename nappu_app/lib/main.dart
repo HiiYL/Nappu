@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -54,20 +55,24 @@ class AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<AuthGate> {
+  late final StreamSubscription<AuthState> _authSub;
+
   @override
   void initState() {
     super.initState();
-    // Listen for auth state changes
-    Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       if (mounted) setState(() {});
     });
   }
 
+  @override
+  void dispose() {
+    _authSub.cancel();
+    super.dispose();
+  }
+
   void _onAuthSuccess() {
     setState(() {});
-    // Load data after auth
-    final appState = Provider.of<AppState>(context, listen: false);
-    appState.loadAll();
   }
 
   @override

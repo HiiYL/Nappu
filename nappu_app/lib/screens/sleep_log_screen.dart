@@ -12,6 +12,7 @@ class SleepLogScreen extends StatefulWidget {
 }
 
 class _SleepLogScreenState extends State<SleepLogScreen> {
+  bool _isSaving = false;
 
   Future<void> _pickBedtime(AppState state) async {
     final picked = await showTimePicker(
@@ -203,86 +204,91 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
           ),
           const SizedBox(height: 16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              GestureDetector(
-                onTap: () => _pickBedtime(state),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        _formatTime(state.currentBedtime),
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _pickBedtime(state),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          _formatTime(state.currentBedtime),
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Bedtime',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Bedtime',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Column(
                   children: [
-                    const Text('🌙', style: TextStyle(fontSize: 16)),
-                    const SizedBox(height: 4),
-                    Icon(Icons.arrow_forward, color: AppColors.textMuted, size: 20),
+                    const Text('🌙', style: TextStyle(fontSize: 14)),
+                    const SizedBox(height: 2),
+                    Icon(Icons.arrow_forward, color: AppColors.textMuted, size: 16),
                   ],
                 ),
               ),
-              GestureDetector(
-                onTap: () => _pickWakeup(state),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        _formatTime(state.currentWakeup),
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _pickWakeup(state),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          _formatTime(state.currentWakeup),
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      const Text(
-                        'Wakeup',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Wakeup',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 8),
               Column(
                 children: [
                   Text(
                     state.sleepDurationFormatted,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
-                      fontSize: 24,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -305,7 +311,8 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   Widget _buildLogButton(AppState state) {
     final logged = state.hasLoggedToday;
     return GestureDetector(
-      onTap: () async {
+      onTap: _isSaving ? null : () async {
+        setState(() => _isSaving = true);
         final messenger = ScaffoldMessenger.of(context);
         final res = await state.logSleep();
         if (mounted) {
@@ -334,36 +341,47 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
             ),
           );
         }
+        if (mounted) setState(() => _isSaving = false);
       },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          gradient: logged
-              ? LinearGradient(
-                  colors: [
-                    AppColors.accent.withValues(alpha: 0.75),
-                    AppColors.blue.withValues(alpha: 0.75),
-                  ],
+      child: Opacity(
+        opacity: _isSaving ? 0.6 : 1.0,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            gradient: logged
+                ? LinearGradient(
+                    colors: [
+                      AppColors.accent.withValues(alpha: 0.75),
+                      AppColors.blue.withValues(alpha: 0.75),
+                    ],
+                  )
+                : const LinearGradient(
+                    colors: [AppColors.gradientStart, AppColors.gradientEnd],
+                  ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (_isSaving)
+                const SizedBox(
+                  width: 18, height: 18,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                 )
-              : const LinearGradient(
-                  colors: [AppColors.gradientStart, AppColors.gradientEnd],
+              else ...[
+                Text(
+                  logged ? 'Update Today\'s Sleep' : 'Log Sleep + Earn 50 ',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              logged ? 'Update Today’s Sleep' : 'Log Sleep + Earn 50 ',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (!logged) const Text('🪙', style: TextStyle(fontSize: 18)),
-          ],
+                if (!logged) const Text('🪙', style: TextStyle(fontSize: 18)),
+              ],
+            ],
+          ),
         ),
       ),
     );

@@ -2,7 +2,7 @@
 
 # Deploy debug build to connected Android device
 run:
-	flutter run -d $(shell flutter devices | grep android | head -1 | awk '{print $$2}')
+	flutter run -d $(shell flutter devices | grep android | head -1 | sed 's/.*• \([^ ]*\) •.*/\1/')
 
 # Build debug APK
 build-debug:
@@ -14,7 +14,7 @@ build-release:
 
 # Install debug APK to connected device via ADB
 install:
-	flutter install -d $(shell flutter devices | grep android | head -1 | awk '{print $$2}')
+	flutter install -d $(shell flutter devices | grep android | head -1 | sed 's/.*• \([^ ]*\) •.*/\1/')
 
 # Run static analysis
 analyze:
