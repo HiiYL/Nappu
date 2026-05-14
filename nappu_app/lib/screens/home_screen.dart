@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/app_state.dart';
+import '../services/supabase_service.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -11,19 +12,29 @@ class HomeScreen extends StatelessWidget {
     return Consumer<AppState>(
       builder: (context, state, _) {
         return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(state),
-                const SizedBox(height: 20),
-                _buildNappuStatus(state),
-                const SizedBox(height: 16),
-                _buildSleepStats(state),
-                const SizedBox(height: 20),
-                _buildSleepTasks(state),
-              ],
+          child: RefreshIndicator(
+            color: AppColors.accent,
+            backgroundColor: AppColors.surface,
+            onRefresh: () => state.loadAll(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context, state),
+                  if (state.errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    _buildErrorBanner(state),
+                  ],
+                  const SizedBox(height: 20),
+                  _buildNappuStatus(state),
+                  const SizedBox(height: 16),
+                  _buildSleepStats(state),
+                  const SizedBox(height: 20),
+                  _buildSleepTasks(state),
+                ],
+              ),
             ),
           ),
         );
@@ -31,7 +42,30 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(AppState state) {
+  Widget _buildErrorBanner(AppState state) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.red.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: AppColors.red, size: 20),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Failed to load data. Pull down to retry.',
+              style: TextStyle(color: AppColors.red, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, AppState state) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -39,7 +73,7 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Good night,',
+              '${state.greeting},',
               style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 14,
@@ -92,15 +126,18 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              width: 42,
-              height: 42,
-              decoration: const BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Text('🐑', style: TextStyle(fontSize: 22)),
+            GestureDetector(
+              onTap: () => _showSettingsSheet(context),
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: const BoxDecoration(
+                  color: AppColors.surface,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(Icons.settings, color: AppColors.textSecondary, size: 20),
+                ),
               ),
             ),
           ],
@@ -162,10 +199,10 @@ class HomeScreen extends StatelessWidget {
                     color: AppColors.surfaceLight,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Text(
-                    'Well-rested',
+                  child: Text(
+                    state.moodBadge,
                     style: TextStyle(
-                      color: AppColors.green,
+                      color: state.moodBadgeColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -249,10 +286,10 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  '↑ +0.5 from avg',
+                Text(
+                  state.sleepDeltaText.isNotEmpty ? state.sleepDeltaText : 'No data yet',
                   style: TextStyle(
-                    color: AppColors.green,
+                    color: state.sleepDeltaColor,
                     fontSize: 12,
                   ),
                 ),
@@ -306,10 +343,10 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  '↑ Great sleep!',
+                Text(
+                  '${state.qualityArrow} ${state.qualityLabel}',
                   style: TextStyle(
-                    color: AppColors.green,
+                    color: state.qualityColor,
                     fontSize: 12,
                   ),
                 ),
@@ -318,6 +355,43 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  void _showSettingsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.logout, color: AppColors.red),
+                title: const Text('Sign Out', style: TextStyle(color: AppColors.textPrimary)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await SupabaseService.signOut();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

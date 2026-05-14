@@ -4,47 +4,93 @@ import 'package:fl_chart/fl_chart.dart';
 import '../theme/app_theme.dart';
 import '../models/app_state.dart';
 
-class SleepLogScreen extends StatelessWidget {
+class SleepLogScreen extends StatefulWidget {
   const SleepLogScreen({super.key});
+
+  @override
+  State<SleepLogScreen> createState() => _SleepLogScreenState();
+}
+
+class _SleepLogScreenState extends State<SleepLogScreen> {
+
+  Future<void> _pickBedtime(AppState state) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: state.currentBedtime,
+      builder: (context, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.accent,
+            surface: AppColors.card,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) state.setBedtime(picked);
+  }
+
+  Future<void> _pickWakeup(AppState state) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: state.currentWakeup,
+      builder: (context, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: AppColors.accent,
+            surface: AppColors.card,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) state.setWakeup(picked);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, state, _) {
         return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-            child: Column(
-              children: [
-                const Text('🌕', style: TextStyle(fontSize: 40)),
-                const SizedBox(height: 6),
-                const Text(
-                  'Sleep Log',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
+          child: RefreshIndicator(
+            color: AppColors.accent,
+            backgroundColor: AppColors.surface,
+            onRefresh: () => state.loadAll(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              child: Column(
+                children: [
+                  const Text('🌕', style: TextStyle(fontSize: 40)),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Sleep Log',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _todayString(),
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
+                  const SizedBox(height: 4),
+                  Text(
+                    _todayString(),
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                _buildQualitySelector(state),
-                const SizedBox(height: 16),
-                _buildDurationPicker(state),
-                const SizedBox(height: 16),
-                _buildLogButton(state),
-                const SizedBox(height: 24),
-                _buildWeeklyChart(state),
-                const SizedBox(height: 20),
-                _buildBiweeklyInsight(state),
-              ],
+                  const SizedBox(height: 20),
+                  _buildQualitySelector(state),
+                  const SizedBox(height: 16),
+                  _buildDurationPicker(state),
+                  const SizedBox(height: 16),
+                  _buildLogButton(state),
+                  const SizedBox(height: 24),
+                  _buildWeeklyChart(state),
+                  const SizedBox(height: 20),
+                  _buildBiweeklyInsight(state),
+                ],
+              ),
             ),
           ),
         );
@@ -128,6 +174,13 @@ class SleepLogScreen extends StatelessWidget {
     );
   }
 
+  String _formatTime(TimeOfDay t) {
+    final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+    final min = t.minute.toString().padLeft(2, '0');
+    final period = t.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$min $period';
+  }
+
   Widget _buildDurationPicker(AppState state) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -153,32 +206,37 @@ class SleepLogScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               GestureDetector(
-                onTap: () async {
-                  // Cycle bedtime hour on tap
-                  state.setBedtime(state.currentBedtime >= 12 ? 1 : state.currentBedtime + 1);
-                },
-                child: Column(
-                  children: [
-                    Text(
-                      state.currentBedtime.toString().padLeft(2, '0'),
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
+                onTap: () => _pickBedtime(state),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        _formatTime(state.currentBedtime),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const Text(
-                      'Bedtime (PM)',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Bedtime',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Column(
                   children: [
                     const Text('🌙', style: TextStyle(fontSize: 16)),
@@ -188,37 +246,43 @@ class SleepLogScreen extends StatelessWidget {
                 ),
               ),
               GestureDetector(
-                onTap: () {
-                  state.setWakeup(state.currentWakeup >= 12 ? 1 : state.currentWakeup + 1);
-                },
-                child: Column(
-                  children: [
-                    Text(
-                      state.currentWakeup.toString().padLeft(2, '0'),
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
+                onTap: () => _pickWakeup(state),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        _formatTime(state.currentWakeup),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const Text(
-                      'Wakeup (AM)',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Wakeup',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 16),
               Column(
                 children: [
                   Text(
-                    '${state.sleepDuration}h',
+                    state.sleepDurationFormatted,
                     style: const TextStyle(
                       color: AppColors.textPrimary,
-                      fontSize: 28,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -239,29 +303,33 @@ class SleepLogScreen extends StatelessWidget {
   }
 
   Widget _buildLogButton(AppState state) {
+    final logged = state.hasLoggedToday;
     return GestureDetector(
-      onTap: () => state.logSleep(),
+      onTap: logged ? null : () => state.logSleep(),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppColors.gradientStart, AppColors.gradientEnd],
-          ),
+          gradient: logged
+              ? null
+              : const LinearGradient(
+                  colors: [AppColors.gradientStart, AppColors.gradientEnd],
+                ),
+          color: logged ? AppColors.surfaceLight : null,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Log Sleep + Earn 50 ',
+              logged ? '✓ Already logged today' : 'Log Sleep + Earn 50 ',
               style: TextStyle(
-                color: Colors.white,
+                color: logged ? AppColors.textSecondary : Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            Text('🪙', style: TextStyle(fontSize: 18)),
+            if (!logged) const Text('🪙', style: TextStyle(fontSize: 18)),
           ],
         ),
       ),

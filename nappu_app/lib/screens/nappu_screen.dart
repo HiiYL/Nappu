@@ -3,8 +3,38 @@ import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../models/app_state.dart';
 
-class NappuScreen extends StatelessWidget {
+class NappuScreen extends StatefulWidget {
   const NappuScreen({super.key});
+
+  @override
+  State<NappuScreen> createState() => _NappuScreenState();
+}
+
+class _NappuScreenState extends State<NappuScreen> {
+  Future<bool> _confirmPurchase(String itemName, int price) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Confirm Purchase', style: TextStyle(color: AppColors.textPrimary)),
+        content: Text(
+          'Buy $itemName for $price tokens?',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Buy', style: TextStyle(color: AppColors.gold, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,12 +96,21 @@ class NappuScreen extends StatelessWidget {
         children: [
           const SizedBox(height: 8),
           Stack(
-            alignment: Alignment.topRight,
+            alignment: Alignment.center,
             children: [
-              const Center(
-                child: Text('🐑', style: TextStyle(fontSize: 70)),
-              ),
-              const Text('🎩', style: TextStyle(fontSize: 24)),
+              const Text('🐑', style: TextStyle(fontSize: 70)),
+              if (state.equippedHatEmoji.isNotEmpty)
+                Positioned(
+                  top: 0,
+                  right: 40,
+                  child: Text(state.equippedHatEmoji, style: const TextStyle(fontSize: 24)),
+                ),
+              if (state.equippedAccessoryEmoji.isNotEmpty)
+                Positioned(
+                  bottom: 0,
+                  left: 40,
+                  child: Text(state.equippedAccessoryEmoji, style: const TextStyle(fontSize: 22)),
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -247,11 +286,20 @@ class NappuScreen extends StatelessWidget {
           itemBuilder: (context, index) {
             final item = items[index];
             return GestureDetector(
-              onTap: () {
+              onTap: () async {
                 if (item.owned) {
                   state.equipItem(item, state.selectedCategory);
                 } else {
-                  state.purchaseItem(item, state.selectedCategory);
+                  if (state.tokens < item.price) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Not enough tokens!'), backgroundColor: AppColors.red),
+                    );
+                    return;
+                  }
+                  final confirmed = await _confirmPurchase(item.name, item.price);
+                  if (confirmed) {
+                    state.purchaseItem(item, state.selectedCategory);
+                  }
                 }
               },
               child: Container(
@@ -348,8 +396,23 @@ class NappuScreen extends StatelessWidget {
             final owned = theme['owned'] as bool;
             return Expanded(
               child: GestureDetector(
-                onTap: () {
-                  state.selectRoomTheme(theme['name'] as String);
+                onTap: () async {
+                  final name = theme['name'] as String;
+                  if (theme['owned'] == true) {
+                    state.selectRoomTheme(name);
+                  } else {
+                    final price = theme['price'] as int;
+                    if (state.tokens < price) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Not enough tokens!'), backgroundColor: AppColors.red),
+                      );
+                      return;
+                    }
+                    final confirmed = await _confirmPurchase(name, price);
+                    if (confirmed) {
+                      state.purchaseRoomTheme(name);
+                    }
+                  }
                 },
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 4),

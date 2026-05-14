@@ -147,9 +147,9 @@ class AppLockScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           if (state.lockEnabled)
-            const Text(
-              '✓ Active tonight · 8.5 hours',
-              style: TextStyle(
+            Text(
+              '✓ Active tonight · ${state.lockDurationText}',
+              style: const TextStyle(
                 color: AppColors.green,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,

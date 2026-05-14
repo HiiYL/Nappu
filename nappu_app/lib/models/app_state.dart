@@ -120,8 +120,104 @@ class AppState extends ChangeNotifier {
   List<Map<String, dynamic>> roomThemes = [];
 
   String currentSleepQuality = 'Good';
-  int currentBedtime = 10;
-  int currentWakeup = 6;
+  TimeOfDay currentBedtime = const TimeOfDay(hour: 22, minute: 0);
+  TimeOfDay currentWakeup = const TimeOfDay(hour: 6, minute: 0);
+  bool hasLoggedToday = false;
+
+  // ─── Computed getters ──────────────────────────────────
+
+  String get greeting {
+    final hour = DateTime.now().hour;
+    if (hour < 5) return 'Good night';
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    if (hour < 21) return 'Good evening';
+    return 'Good night';
+  }
+
+  double get weeklyAvgSleep {
+    final logged = weeklyData.where((d) => (d['hours'] as double) > 0).toList();
+    if (logged.isEmpty) return 0;
+    return logged.map((d) => d['hours'] as double).reduce((a, b) => a + b) / logged.length;
+  }
+
+  String get sleepDeltaText {
+    if (lastNightSleep == 0 || weeklyAvgSleep == 0) return '';
+    final delta = lastNightSleep - weeklyAvgSleep;
+    final abs = delta.abs().toStringAsFixed(1);
+    if (delta > 0.05) return '↑ +${abs} from avg';
+    if (delta < -0.05) return '↓ -${abs} from avg';
+    return '— on average';
+  }
+
+  Color get sleepDeltaColor {
+    if (lastNightSleep == 0 || weeklyAvgSleep == 0) return const Color(0xFF8e94b0);
+    final delta = lastNightSleep - weeklyAvgSleep;
+    return delta >= 0 ? const Color(0xFF4cd964) : const Color(0xFFff4757);
+  }
+
+  String get qualityLabel {
+    if (sleepQualityPercent >= 90) return 'Great sleep!';
+    if (sleepQualityPercent >= 70) return 'Good sleep';
+    if (sleepQualityPercent >= 50) return 'Okay sleep';
+    if (sleepQualityPercent > 0) return 'Poor sleep';
+    return 'No data yet';
+  }
+
+  String get qualityArrow {
+    if (sleepQualityPercent >= 70) return '↑';
+    if (sleepQualityPercent >= 50) return '→';
+    if (sleepQualityPercent > 0) return '↓';
+    return '';
+  }
+
+  Color get qualityColor {
+    if (sleepQualityPercent >= 70) return const Color(0xFF4cd964);
+    if (sleepQualityPercent >= 50) return const Color(0xFFf5a623);
+    if (sleepQualityPercent > 0) return const Color(0xFFff4757);
+    return const Color(0xFF8e94b0);
+  }
+
+  String get moodBadge {
+    if (sleepQualityPercent >= 85) return 'Well-rested';
+    if (sleepQualityPercent >= 65) return 'Rested';
+    if (sleepQualityPercent >= 45) return 'Tired';
+    if (sleepQualityPercent > 0) return 'Exhausted';
+    return 'Unknown';
+  }
+
+  Color get moodBadgeColor {
+    if (sleepQualityPercent >= 85) return const Color(0xFF4cd964);
+    if (sleepQualityPercent >= 65) return const Color(0xFF74b9ff);
+    if (sleepQualityPercent >= 45) return const Color(0xFFf5a623);
+    if (sleepQualityPercent > 0) return const Color(0xFFff4757);
+    return const Color(0xFF8e94b0);
+  }
+
+  String get equippedHatEmoji {
+    final e = hats.where((h) => h.equipped).firstOrNull;
+    return e?.emoji ?? '';
+  }
+
+  String get equippedOutfitEmoji {
+    final e = outfits.where((o) => o.equipped).firstOrNull;
+    return e?.emoji ?? '';
+  }
+
+  String get equippedAccessoryEmoji {
+    final e = accessories.where((a) => a.equipped).firstOrNull;
+    return e?.emoji ?? '';
+  }
+
+  String get lockDurationText {
+    final startMin = lockStartHour * 60 + lockStartMinute;
+    final endMin = lockEndHour * 60 + lockEndMinute;
+    final diff = endMin > startMin ? endMin - startMin : (1440 - startMin) + endMin;
+    final h = diff ~/ 60;
+    final m = diff % 60;
+    if (m == 0) return '$h hours';
+    return '$h.${(m * 10 ~/ 60)} hours';
+  }
 
   // ─── Load all data from Supabase ───────────────────────
 
@@ -226,6 +322,14 @@ class AppState extends ChangeNotifier {
       lastNightSleep = (lastLog['duration_hours'] as num).toDouble();
       final q = lastLog['quality'] as String;
       sleepQualityPercent = q == 'Great' ? 95 : q == 'Good' ? 84 : q == 'Okay' ? 60 : 40;
+
+      // Check if already logged today
+      final logDate = lastLog['log_date'] as String;
+      final now = DateTime.now();
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      hasLoggedToday = logDate == todayStr;
+    } else {
+      hasLoggedToday = false;
     }
   }
 
@@ -313,6 +417,17 @@ class AppState extends ChangeNotifier {
     if (insight != null) {
       biweeklyInsight = insight['insight_text'] ?? '';
     } else {
+      // Auto-generate if we have enough data (7+ days of logs)
+      final logged = weeklyData.where((d) => (d['hours'] as double) > 0).length;
+      if (logged >= 7) {
+        try {
+          final res = await SupabaseService.generateBiweeklyInsight();
+          if (res['success'] == true) {
+            biweeklyInsight = res['insight_text'] as String;
+            return;
+          }
+        } catch (_) {}
+      }
       biweeklyInsight =
           'Log your sleep for two weeks to receive personalised biweekly insights. 🌙';
     }
@@ -351,21 +466,12 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setBedtime(int hour) {
-    currentBedtime = hour;
-    notifyListeners();
-  }
-
-  void setWakeup(int hour) {
-    currentWakeup = hour;
-    notifyListeners();
-  }
-
   Future<void> logSleep() async {
-    final duration = sleepDuration.toDouble();
+    final duration = sleepDuration;
 
     // Optimistic UI
     lastNightSleep = duration;
+    hasLoggedToday = true;
     final q = currentSleepQuality;
     sleepQualityPercent = q == 'Great' ? 95 : q == 'Good' ? 84 : q == 'Okay' ? 60 : 40;
     notifyListeners();
@@ -373,8 +479,8 @@ class AppState extends ChangeNotifier {
     // Server-side RPC awards tokens, updates streak/XP atomically
     final res = await SupabaseService.logSleep(
       quality: currentSleepQuality,
-      bedtimeHour: currentBedtime,
-      wakeupHour: currentWakeup,
+      bedtimeHour: currentBedtime.hour,
+      wakeupHour: currentWakeup.hour,
       durationHours: duration,
     );
 
@@ -450,15 +556,67 @@ class AppState extends ChangeNotifier {
   }
 
   void selectRoomTheme(String themeName) {
+    final theme = roomThemes.firstWhere((t) => t['name'] == themeName, orElse: () => {});
+    if (theme.isEmpty) return;
+    // Only select if owned
+    if (theme['owned'] != true) return;
     for (var t in roomThemes) {
       t['selected'] = t['name'] == themeName;
     }
     notifyListeners();
   }
 
-  int get sleepDuration {
-    int d = currentWakeup + (24 - currentBedtime);
-    if (d > 16) d = currentBedtime - currentWakeup;
-    return d;
+  Future<void> purchaseRoomTheme(String themeName) async {
+    final theme = roomThemes.firstWhere((t) => t['name'] == themeName, orElse: () => {});
+    if (theme.isEmpty || theme['owned'] == true) return;
+    final price = theme['price'] as int;
+    if (tokens < price) return;
+
+    // Optimistic UI
+    final oldTokens = tokens;
+    tokens -= price;
+    theme['owned'] = true;
+    theme['selected'] = true;
+    for (var t in roomThemes) {
+      if (t['name'] != themeName) t['selected'] = false;
+    }
+    notifyListeners();
+
+    final res = await SupabaseService.purchaseItem('Themes', themeName, price);
+    if (res['success'] == true) {
+      tokens = res['new_balance'] as int;
+      notifyListeners();
+    } else {
+      // Revert
+      tokens = oldTokens;
+      theme['owned'] = false;
+      theme['selected'] = false;
+      notifyListeners();
+    }
+  }
+
+  double get sleepDuration {
+    final bedMin = currentBedtime.hour * 60 + currentBedtime.minute;
+    final wakeMin = currentWakeup.hour * 60 + currentWakeup.minute;
+    final diff = wakeMin > bedMin ? wakeMin - bedMin : (1440 - bedMin) + wakeMin;
+    return diff / 60.0;
+  }
+
+  String get sleepDurationFormatted {
+    final d = sleepDuration;
+    final h = d.floor();
+    final m = ((d - h) * 60).round();
+    if (m == 0) return '${h}h';
+    return '${h}h ${m}m';
+  }
+
+  void setBedtime(TimeOfDay time) {
+    currentBedtime = time;
+    notifyListeners();
+  }
+
+  void setWakeup(TimeOfDay time) {
+    currentWakeup = time;
+    notifyListeners();
   }
 }
