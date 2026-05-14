@@ -96,6 +96,7 @@ class _DataLoader extends StatefulWidget {
 
 class _DataLoaderState extends State<_DataLoader> {
   bool _initialized = false;
+  String? _loadError;
 
   @override
   void initState() {
@@ -104,23 +105,66 @@ class _DataLoaderState extends State<_DataLoader> {
   }
 
   Future<void> _load() async {
-    final appState = Provider.of<AppState>(context, listen: false);
-    await appState.loadAll();
-    if (mounted) setState(() => _initialized = true);
+    setState(() => _loadError = null);
+    try {
+      final appState = Provider.of<AppState>(context, listen: false);
+      await appState.loadAll().timeout(const Duration(seconds: 15));
+      if (mounted) setState(() => _initialized = true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadError = e is TimeoutException
+              ? 'Connection timed out. Check your internet and try again.'
+              : 'Could not connect to server. Please try again.';
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_initialized) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('🐑', style: TextStyle(fontSize: 56)),
-              SizedBox(height: 16),
-              SizedBox(
+    if (_initialized) return const MainShell();
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('🐑', style: TextStyle(fontSize: 56)),
+            const SizedBox(height: 16),
+            if (_loadError != null) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text(
+                  _loadError!,
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 20),
+              GestureDetector(
+                onTap: _load,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [AppColors.gradientStart, AppColors.gradientEnd],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Retry',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ] else
+              const SizedBox(
                 width: 24,
                 height: 24,
                 child: CircularProgressIndicator(
@@ -128,12 +172,10 @@ class _DataLoaderState extends State<_DataLoader> {
                   strokeWidth: 2,
                 ),
               ),
-            ],
-          ),
+          ],
         ),
-      );
-    }
-    return const MainShell();
+      ),
+    );
   }
 }
 
