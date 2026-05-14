@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Nappu uses this service to detect when locked apps are opened during your bedtime schedule, so it can show a friendly reminder to go to sleep.</string>
+</resources>

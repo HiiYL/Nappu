@@ -25,7 +25,8 @@ class AppLockService : Service() {
     companion object {
         private const val CHANNEL_ID = "nappu_app_lock"
         private const val NOTIFICATION_ID = 1001
-        private const val POLL_INTERVAL_MS = 1000L
+        private const val POLL_INTERVAL_MS = 500L      // during lock window
+        private const val IDLE_INTERVAL_MS = 60_000L  // outside lock window
         private const val PREFS_NAME = "nappu_app_lock"
         private const val KEY_PACKAGES = "packages"
         private const val KEY_START_HOUR = "startHour"
@@ -84,8 +85,17 @@ class AppLockService : Service() {
 
     private val pollRunnable = object : Runnable {
         override fun run() {
-            checkForegroundApp()
-            handler.postDelayed(this, POLL_INTERVAL_MS)
+            if (isWithinLockWindow()) {
+                checkForegroundApp()
+                handler.postDelayed(this, POLL_INTERVAL_MS)
+            } else {
+                // Outside lock window — clean up and sleep until next check
+                if (currentlyBlocked != null) {
+                    removeOverlay()
+                    currentlyBlocked = null
+                }
+                handler.postDelayed(this, IDLE_INTERVAL_MS)
+            }
         }
     }
 
@@ -119,12 +129,6 @@ class AppLockService : Service() {
             return
         }
 
-        if (!isWithinLockWindow()) {
-            removeOverlay()
-            currentlyBlocked = null
-            return
-        }
-
         val foreground = getForegroundPackage()
         if (foreground != null && lockedPackages.contains(foreground)) {
             if (currentlyBlocked != foreground) {
@@ -142,9 +146,16 @@ class AppLockService : Service() {
     private fun getForegroundPackage(): String? {
         val usm = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return null
         val now = System.currentTimeMillis()
-        val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, now - 5000, now)
-        if (stats.isNullOrEmpty()) return null
-        return stats.maxByOrNull { it.lastTimeUsed }?.packageName
+        val events = usm.queryEvents(now - 2000, now)
+        var foreground: String? = null
+        val event = android.app.usage.UsageEvents.Event()
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            if (event.eventType == android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                foreground = event.packageName
+            }
+        }
+        return foreground
     }
 
     private fun isWithinLockWindow(): Boolean {

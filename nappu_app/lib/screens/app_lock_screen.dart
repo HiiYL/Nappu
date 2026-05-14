@@ -12,8 +12,7 @@ class AppLockScreen extends StatefulWidget {
 }
 
 class _AppLockScreenState extends State<AppLockScreen> {
-  bool _hasUsagePermission = false;
-  bool _hasOverlayPermission = false;
+  bool _hasAccessibilityPermission = false;
   bool _checkedPermissions = false;
 
   @override
@@ -27,12 +26,10 @@ class _AppLockScreenState extends State<AppLockScreen> {
       setState(() => _checkedPermissions = true);
       return;
     }
-    final usage = await AppLockNative.hasUsageStatsPermission();
-    final overlay = await AppLockNative.hasOverlayPermission();
+    final a11y = await AppLockNative.hasAccessibilityPermission();
     if (mounted) {
       setState(() {
-        _hasUsagePermission = usage;
-        _hasOverlayPermission = overlay;
+        _hasAccessibilityPermission = a11y;
         _checkedPermissions = true;
       });
     }
@@ -151,7 +148,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
                       fontSize: 13,
                     ),
                   ),
-                  if (AppLockNative.isAndroid && _checkedPermissions && (!_hasUsagePermission || !_hasOverlayPermission)) ...[                  
+                  if (AppLockNative.isAndroid && _checkedPermissions && !_hasAccessibilityPermission) ...[
                     const SizedBox(height: 12),
                     _buildPermissionBanner(),
                   ],
@@ -173,83 +170,62 @@ class _AppLockScreenState extends State<AppLockScreen> {
   }
 
   Widget _buildPermissionBanner() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.gold.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.warning_amber, color: AppColors.gold, size: 18),
-              SizedBox(width: 8),
-              Text(
-                'Setup Required',
-                style: TextStyle(
-                  color: AppColors.gold,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Nappu needs permissions to block apps during bedtime.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
-          ),
-          const SizedBox(height: 10),
-          if (!_hasUsagePermission)
-            _buildPermissionButton(
-              'Usage Access',
-              'Detect which app is open',
-              () async {
-                await AppLockNative.requestUsageStatsPermission();
-                // Re-check after user returns
-                Future.delayed(const Duration(seconds: 2), _checkPermissions);
-              },
-            ),
-          if (!_hasOverlayPermission) ...[
-            if (!_hasUsagePermission) const SizedBox(height: 8),
-            _buildPermissionButton(
-              'Display Over Apps',
-              'Show lock screen overlay',
-              () async {
-                await AppLockNative.requestOverlayPermission();
-                Future.delayed(const Duration(seconds: 2), _checkPermissions);
-              },
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPermissionButton(String title, String subtitle, VoidCallback onTap) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: () async {
+        await AppLockNative.requestAccessibilityPermission();
+        Future.delayed(const Duration(seconds: 2), _checkPermissions);
+      },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surfaceLight,
-          borderRadius: BorderRadius.circular(10),
+          color: AppColors.gold.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            const Row(
+              children: [
+                Icon(Icons.warning_amber, color: AppColors.gold, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Setup Required',
+                  style: TextStyle(
+                    color: AppColors.gold,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Enable Nappu in Accessibility settings to block apps during bedtime.',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceLight,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Row(
                 children: [
-                  Text(title, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                  Text(subtitle, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Accessibility Service', style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text('Detect app switches instantly', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.open_in_new, color: AppColors.accent, size: 18),
                 ],
               ),
             ),
-            const Icon(Icons.open_in_new, color: AppColors.accent, size: 18),
           ],
         ),
       ),
