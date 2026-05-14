@@ -42,7 +42,11 @@ class MainActivity : FlutterActivity() {
                 }
                 "startAppLock" -> {
                     val packages = call.argument<List<String>>("packages") ?: emptyList()
-                    AppLockService.lockedPackages = packages.toMutableSet()
+                    val startHour = call.argument<Int>("startHour") ?: 22
+                    val startMinute = call.argument<Int>("startMinute") ?: 30
+                    val endHour = call.argument<Int>("endHour") ?: 7
+                    val endMinute = call.argument<Int>("endMinute") ?: 0
+                    AppLockService.updateConfig(this, packages, startHour, startMinute, endHour, endMinute)
                     val serviceIntent = Intent(this, AppLockService::class.java)
                     ContextCompat.startForegroundService(this, serviceIntent)
                     result.success(true)
@@ -55,9 +59,13 @@ class MainActivity : FlutterActivity() {
                 "isAppLockRunning" -> {
                     result.success(AppLockService.isRunning)
                 }
-                "updateLockedPackages" -> {
+                "updateAppLockConfig" -> {
                     val packages = call.argument<List<String>>("packages") ?: emptyList()
-                    AppLockService.lockedPackages = packages.toMutableSet()
+                    val startHour = call.argument<Int>("startHour") ?: 22
+                    val startMinute = call.argument<Int>("startMinute") ?: 30
+                    val endHour = call.argument<Int>("endHour") ?: 7
+                    val endMinute = call.argument<Int>("endMinute") ?: 0
+                    AppLockService.updateConfig(this, packages, startHour, startMinute, endHour, endMinute)
                     result.success(true)
                 }
                 "emergencyOverride" -> {

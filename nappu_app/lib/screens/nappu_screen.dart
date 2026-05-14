@@ -41,8 +41,13 @@ class _NappuScreenState extends State<NappuScreen> {
     return Consumer<AppState>(
       builder: (context, state, _) {
         return SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: RefreshIndicator(
+            color: AppColors.accent,
+            backgroundColor: AppColors.surface,
+            onRefresh: () => state.loadAll(),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             child: Column(
               children: [
                 Row(
@@ -78,6 +83,7 @@ class _NappuScreenState extends State<NappuScreen> {
               ],
             ),
           ),
+          ),
         );
       },
     );
@@ -104,6 +110,12 @@ class _NappuScreenState extends State<NappuScreen> {
                   top: 0,
                   right: 40,
                   child: Text(state.equippedHatEmoji, style: const TextStyle(fontSize: 24)),
+                ),
+              if (state.equippedOutfitEmoji.isNotEmpty)
+                Positioned(
+                  bottom: 5,
+                  right: 35,
+                  child: Text(state.equippedOutfitEmoji, style: const TextStyle(fontSize: 20)),
                 ),
               if (state.equippedAccessoryEmoji.isNotEmpty)
                 Positioned(

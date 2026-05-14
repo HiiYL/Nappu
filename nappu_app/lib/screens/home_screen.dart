@@ -156,6 +156,48 @@ class HomeScreen extends StatelessWidget {
                 const Text('🌙', style: TextStyle(fontSize: 22)),
               ],
             ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.streakOrange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Text('🔥', style: TextStyle(fontSize: 12)),
+                      const SizedBox(width: 3),
+                      Text(
+                        '${state.streak} day${state.streak == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                          color: AppColors.streakOrange,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Lv.${state.nappuLevel}',
+                    style: const TextStyle(
+                      color: AppColors.accent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
         Row(
@@ -427,6 +469,51 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  void _showEditNameDialog(BuildContext context) {
+    final controller = TextEditingController(
+      text: Provider.of<AppState>(context, listen: false).userName,
+    );
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit Display Name', style: TextStyle(color: AppColors.textPrimary)),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          style: const TextStyle(color: AppColors.textPrimary),
+          decoration: InputDecoration(
+            hintText: 'Enter your name',
+            hintStyle: const TextStyle(color: AppColors.textMuted),
+            filled: true,
+            fillColor: AppColors.surfaceLight,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+          ),
+          TextButton(
+            onPressed: () async {
+              final name = controller.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(ctx);
+              final state = Provider.of<AppState>(context, listen: false);
+              state.updateDisplayName(name);
+            },
+            child: const Text('Save', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showSettingsSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -450,11 +537,44 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               ListTile(
+                leading: const Icon(Icons.person_outline, color: AppColors.accent),
+                title: const Text('Edit Display Name', style: TextStyle(color: AppColors.textPrimary)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showEditNameDialog(context);
+                },
+              ),
+              const Divider(color: AppColors.cardBorder, height: 1),
+              ListTile(
                 leading: const Icon(Icons.logout, color: AppColors.red),
                 title: const Text('Sign Out', style: TextStyle(color: AppColors.textPrimary)),
-                onTap: () async {
+                onTap: () {
                   Navigator.pop(ctx);
-                  await SupabaseService.signOut();
+                  showDialog(
+                    context: context,
+                    builder: (dlg) => AlertDialog(
+                      backgroundColor: AppColors.card,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      title: const Text('Sign Out', style: TextStyle(color: AppColors.textPrimary)),
+                      content: const Text(
+                        'Are you sure you want to sign out?',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dlg),
+                          child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            Navigator.pop(dlg);
+                            await SupabaseService.signOut();
+                          },
+                          child: const Text('Sign Out', style: TextStyle(color: AppColors.red, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  );
                 },
               ),
             ],

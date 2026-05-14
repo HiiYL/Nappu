@@ -7,6 +7,7 @@ import android.app.Service
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.os.Build
@@ -25,10 +26,55 @@ class AppLockService : Service() {
         private const val CHANNEL_ID = "nappu_app_lock"
         private const val NOTIFICATION_ID = 1001
         private const val POLL_INTERVAL_MS = 1000L
+        private const val PREFS_NAME = "nappu_app_lock"
+        private const val KEY_PACKAGES = "packages"
+        private const val KEY_START_HOUR = "startHour"
+        private const val KEY_START_MINUTE = "startMinute"
+        private const val KEY_END_HOUR = "endHour"
+        private const val KEY_END_MINUTE = "endMinute"
 
         var lockedPackages: MutableSet<String> = mutableSetOf()
         var isRunning = false
         var overrideUntil: Long = 0
+        var lockStartHour = 22
+        var lockStartMinute = 30
+        var lockEndHour = 7
+        var lockEndMinute = 0
+
+        fun updateConfig(
+            context: Context,
+            packages: List<String>,
+            startHour: Int,
+            startMinute: Int,
+            endHour: Int,
+            endMinute: Int
+        ) {
+            lockedPackages = packages.toMutableSet()
+            lockStartHour = startHour
+            lockStartMinute = startMinute
+            lockEndHour = endHour
+            lockEndMinute = endMinute
+            prefs(context).edit()
+                .putString(KEY_PACKAGES, packages.joinToString(","))
+                .putInt(KEY_START_HOUR, startHour)
+                .putInt(KEY_START_MINUTE, startMinute)
+                .putInt(KEY_END_HOUR, endHour)
+                .putInt(KEY_END_MINUTE, endMinute)
+                .apply()
+        }
+
+        fun loadConfig(context: Context) {
+            val prefs = prefs(context)
+            val packages = prefs.getString(KEY_PACKAGES, "") ?: ""
+            lockedPackages = packages.split(",").filter { it.isNotBlank() }.toMutableSet()
+            lockStartHour = prefs.getInt(KEY_START_HOUR, 22)
+            lockStartMinute = prefs.getInt(KEY_START_MINUTE, 30)
+            lockEndHour = prefs.getInt(KEY_END_HOUR, 7)
+            lockEndMinute = prefs.getInt(KEY_END_MINUTE, 0)
+        }
+
+        private fun prefs(context: Context): SharedPreferences =
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
     private val handler = Handler(Looper.getMainLooper())
@@ -50,6 +96,7 @@ class AppLockService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        loadConfig(this)
         val notification = buildNotification()
         startForeground(NOTIFICATION_ID, notification)
         isRunning = true
@@ -67,9 +114,14 @@ class AppLockService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun checkForegroundApp() {
-        // If emergency override is active, skip
         if (System.currentTimeMillis() < overrideUntil) {
             removeOverlay()
+            return
+        }
+
+        if (!isWithinLockWindow()) {
+            removeOverlay()
+            currentlyBlocked = null
             return
         }
 
@@ -93,6 +145,20 @@ class AppLockService : Service() {
         val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, now - 5000, now)
         if (stats.isNullOrEmpty()) return null
         return stats.maxByOrNull { it.lastTimeUsed }?.packageName
+    }
+
+    private fun isWithinLockWindow(): Boolean {
+        val calendar = java.util.Calendar.getInstance()
+        val now = calendar.get(java.util.Calendar.HOUR_OF_DAY) * 60 + calendar.get(java.util.Calendar.MINUTE)
+        val start = lockStartHour * 60 + lockStartMinute
+        val end = lockEndHour * 60 + lockEndMinute
+        return if (start == end) {
+            true
+        } else if (start < end) {
+            now in start until end
+        } else {
+            now >= start || now < end
+        }
     }
 
     private fun showOverlay(packageName: String) {

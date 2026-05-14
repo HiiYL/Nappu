@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
@@ -415,13 +414,44 @@ class _AppLockScreenState extends State<AppLockScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Locked Apps',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Locked Apps',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (state.availableAppsToAdd.isNotEmpty)
+              GestureDetector(
+                onTap: () => _showAddAppSheet(state),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add, color: AppColors.accent, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'Add App',
+                        style: TextStyle(
+                          color: AppColors.accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 12),
         ...state.lockedApps.asMap().entries.map((entry) {
@@ -430,61 +460,157 @@ class _AppLockScreenState extends State<AppLockScreen> {
           final isLocked = app.status == 'Locked';
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.cardBorder, width: 1),
+            child: Dismissible(
+              key: ValueKey(app.name),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.red.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.delete_outline, color: AppColors.red),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: app.iconColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(10),
+              confirmDismiss: (_) async {
+                return await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: AppColors.card,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: const Text('Remove App', style: TextStyle(color: AppColors.textPrimary)),
+                    content: Text(
+                      'Remove ${app.name} from locked apps?',
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
-                    child: Icon(app.icon, color: app.iconColor, size: 22),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      app.name,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancel', style: TextStyle(color: AppColors.textMuted)),
                       ),
-                    ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Remove', style: TextStyle(color: AppColors.red, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
                   ),
-                  GestureDetector(
-                    onTap: () => state.toggleLockedAppStatus(index),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                ) ?? false;
+              },
+              onDismissed: (_) => state.removeLockedApp(index),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.cardBorder, width: 1),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: isLocked
-                            ? AppColors.red.withValues(alpha: 0.15)
-                            : AppColors.green.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
+                        color: app.iconColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                      child: Icon(app.icon, color: app.iconColor, size: 22),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
                       child: Text(
-                        app.status,
-                        style: TextStyle(
-                          color: isLocked ? AppColors.red : AppColors.green,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                        app.name,
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    GestureDetector(
+                      onTap: () => state.toggleLockedAppStatus(index),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: isLocked
+                              ? AppColors.red.withValues(alpha: 0.15)
+                              : AppColors.green.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          app.status,
+                          style: TextStyle(
+                            color: isLocked ? AppColors.red : AppColors.green,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
         }),
       ],
+    );
+  }
+
+  void _showAddAppSheet(AppState state) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Add App to Lock',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 14),
+              ...state.availableAppsToAdd.map((name) {
+                final icon = appIconCatalog[name] ?? Icons.apps;
+                final color = appColorCatalog[name] ?? Colors.grey;
+                return ListTile(
+                  leading: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: color, size: 20),
+                  ),
+                  title: Text(name, style: const TextStyle(color: AppColors.textPrimary)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    state.addLockedApp(name);
+                  },
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

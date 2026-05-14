@@ -34,10 +34,22 @@ class AppLockNative {
     await _channel.invokeMethod('requestOverlayPermission');
   }
 
-  static Future<bool> startAppLock(List<String> packages) async {
+  static Future<bool> startAppLock(
+    List<String> packages, {
+    required int startHour,
+    required int startMinute,
+    required int endHour,
+    required int endMinute,
+  }) async {
     if (!isAndroid) return false;
     try {
-      return await _channel.invokeMethod<bool>('startAppLock', {'packages': packages}) ?? false;
+      return await _channel.invokeMethod<bool>('startAppLock', {
+        'packages': packages,
+        'startHour': startHour,
+        'startMinute': startMinute,
+        'endHour': endHour,
+        'endMinute': endMinute,
+      }) ?? false;
     } catch (_) {
       return false;
     }
@@ -61,10 +73,22 @@ class AppLockNative {
     }
   }
 
-  static Future<bool> updateLockedPackages(List<String> packages) async {
+  static Future<bool> updateAppLockConfig(
+    List<String> packages, {
+    required int startHour,
+    required int startMinute,
+    required int endHour,
+    required int endMinute,
+  }) async {
     if (!isAndroid) return false;
     try {
-      return await _channel.invokeMethod<bool>('updateLockedPackages', {'packages': packages}) ?? false;
+      return await _channel.invokeMethod<bool>('updateAppLockConfig', {
+        'packages': packages,
+        'startHour': startHour,
+        'startMinute': startMinute,
+        'endHour': endHour,
+        'endMinute': endMinute,
+      }) ?? false;
     } catch (_) {
       return false;
     }

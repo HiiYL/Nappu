@@ -67,7 +67,9 @@ class SupabaseService {
   static Future<Map<String, dynamic>> logSleep({
     required String quality,
     required int bedtimeHour,
+    required int bedtimeMinute,
     required int wakeupHour,
+    required int wakeupMinute,
     required double durationHours,
     int tokensEarned = 50,
   }) async {
@@ -75,7 +77,9 @@ class SupabaseService {
     final res = await client.rpc('log_sleep', params: {
       'p_quality': quality,
       'p_bedtime_hour': bedtimeHour,
+      'p_bedtime_minute': bedtimeMinute,
       'p_wakeup_hour': wakeupHour,
+      'p_wakeup_minute': wakeupMinute,
       'p_duration_hours': durationHours,
       'p_tokens_earned': tokensEarned,
     });
@@ -198,6 +202,24 @@ class SupabaseService {
     await client
         .from('locked_apps')
         .update({'status': status})
+        .eq('user_id', userId!)
+        .eq('app_name', appName);
+  }
+
+  static Future<void> addLockedApp(String appName) async {
+    if (userId == null) return;
+    await client.from('locked_apps').upsert({
+      'user_id': userId,
+      'app_name': appName,
+      'status': 'Locked',
+    });
+  }
+
+  static Future<void> removeLockedApp(String appName) async {
+    if (userId == null) return;
+    await client
+        .from('locked_apps')
+        .delete()
         .eq('user_id', userId!)
         .eq('app_name', appName);
   }

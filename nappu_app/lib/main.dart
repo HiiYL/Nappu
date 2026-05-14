@@ -142,19 +142,19 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
-  final _screens = const [
-    HomeScreen(),
-    SleepLogScreen(),
-    AppLockScreen(),
-    NappuScreen(),
+  final _screens = [
+    const HomeScreen(key: ValueKey(0)),
+    const SleepLogScreen(key: ValueKey(1)),
+    const AppLockScreen(key: ValueKey(2)),
+    const NappuScreen(key: ValueKey(3)),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: _screens[_currentIndex],
       ),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(

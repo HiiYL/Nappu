@@ -305,26 +305,59 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
   Widget _buildLogButton(AppState state) {
     final logged = state.hasLoggedToday;
     return GestureDetector(
-      onTap: logged ? null : () => state.logSleep(),
+      onTap: () async {
+        final messenger = ScaffoldMessenger.of(context);
+        final res = await state.logSleep();
+        if (mounted) {
+          final success = res['success'] == true;
+          final firstLog = res['first_log_today'] == true;
+          messenger.showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Text(success ? '🎉 ' : '⚠️ ', style: const TextStyle(fontSize: 18)),
+                  Expanded(
+                    child: Text(
+                      success
+                          ? firstLog
+                              ? 'Sleep logged! +50 tokens earned'
+                              : 'Sleep log updated'
+                          : 'Could not save sleep log',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: success ? AppColors.green : AppColors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      },
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           gradient: logged
-              ? null
+              ? LinearGradient(
+                  colors: [
+                    AppColors.accent.withValues(alpha: 0.75),
+                    AppColors.blue.withValues(alpha: 0.75),
+                  ],
+                )
               : const LinearGradient(
                   colors: [AppColors.gradientStart, AppColors.gradientEnd],
                 ),
-          color: logged ? AppColors.surfaceLight : null,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              logged ? '✓ Already logged today' : 'Log Sleep + Earn 50 ',
+              logged ? 'Update Today’s Sleep' : 'Log Sleep + Earn 50 ',
               style: TextStyle(
-                color: logged ? AppColors.textSecondary : Colors.white,
+                color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
@@ -445,7 +478,7 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
           Text(
             state.biweeklyInsight.isNotEmpty
                 ? state.biweeklyInsight
-                : 'Your average sleep is 7.2 hrs — slightly below ideal. Try sleeping 20 min earlier on weekdays. 🌙',
+                : 'Log sleep for 7+ days to get your first personalized insight! 🌙',
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 14,

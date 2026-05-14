@@ -78,23 +78,48 @@ const Map<String, int> _itemPrices = {
 };
 
 // Icon/color lookup for locked apps
-final Map<String, IconData> _appIcons = {
+final Map<String, IconData> appIconCatalog = {
   'Instagram': Icons.camera_alt,
   'TikTok': Icons.music_note,
   'WhatsApp': Icons.chat_bubble,
   'YouTube': Icons.play_arrow,
+  'Twitter / X': Icons.tag,
+  'Snapchat': Icons.flash_on,
+  'Reddit': Icons.forum,
+  'Facebook': Icons.facebook,
+  'Telegram': Icons.send,
+  'Discord': Icons.headset_mic,
+  'Netflix': Icons.tv,
+  'Twitch': Icons.videogame_asset,
 };
-final Map<String, Color> _appColors = {
+final Map<String, Color> appColorCatalog = {
   'Instagram': const Color(0xFFe1306c),
   'TikTok': const Color(0xFF69c9d0),
   'WhatsApp': const Color(0xFF25d366),
   'YouTube': const Color(0xFFff0000),
+  'Twitter / X': const Color(0xFF1da1f2),
+  'Snapchat': const Color(0xFFfffc00),
+  'Reddit': const Color(0xFFff4500),
+  'Facebook': const Color(0xFF1877f2),
+  'Telegram': const Color(0xFF0088cc),
+  'Discord': const Color(0xFF5865f2),
+  'Netflix': const Color(0xFFe50914),
+  'Twitch': const Color(0xFF9146ff),
 };
 final Map<String, String> _appPackages = {
+  // kept private — only used internally
   'Instagram': 'com.instagram.android',
   'TikTok': 'com.zhiliaoapp.musically',
   'WhatsApp': 'com.whatsapp',
   'YouTube': 'com.google.android.youtube',
+  'Twitter / X': 'com.twitter.android',
+  'Snapchat': 'com.snapchat.android',
+  'Reddit': 'com.reddit.frontpage',
+  'Facebook': 'com.facebook.katana',
+  'Telegram': 'org.telegram.messenger',
+  'Discord': 'com.discord',
+  'Netflix': 'com.netflix.mediaclient',
+  'Twitch': 'tv.twitch.android.app',
 };
 
 class AppState extends ChangeNotifier {
@@ -155,8 +180,8 @@ class AppState extends ChangeNotifier {
     if (lastNightSleep == 0 || weeklyAvgSleep == 0) return '';
     final delta = lastNightSleep - weeklyAvgSleep;
     final abs = delta.abs().toStringAsFixed(1);
-    if (delta > 0.05) return '↑ +${abs} from avg';
-    if (delta < -0.05) return '↓ -${abs} from avg';
+    if (delta > 0.05) return '↑ +$abs from avg';
+    if (delta < -0.05) return '↓ -$abs from avg';
     return '— on average';
   }
 
@@ -286,6 +311,7 @@ class AppState extends ChangeNotifier {
   }
 
   void _loadDefaultShopItems() {
+    assert(_itemEmojis.keys.every(_itemPrices.containsKey));
     hats = [
       ShopItem(name: 'Top Hat', emoji: '🎩', price: 0, owned: true, equipped: true),
       ShopItem(name: 'Cap', emoji: '🧢', price: 0, owned: true),
@@ -391,8 +417,8 @@ class AppState extends ChangeNotifier {
       return LockedApp(
         name: name,
         packageName: _appPackages[name] ?? '',
-        icon: _appIcons[name] ?? Icons.apps,
-        iconColor: _appColors[name] ?? Colors.grey,
+        icon: appIconCatalog[name] ?? Icons.apps,
+        iconColor: appColorCatalog[name] ?? Colors.grey,
         status: a['status'] as String,
       );
     }).toList();
@@ -409,9 +435,21 @@ class AppState extends ChangeNotifier {
     if (lockEnabled && _lockedPackageNames.isNotEmpty) {
       final running = await AppLockNative.isAppLockRunning();
       if (running) {
-        await AppLockNative.updateLockedPackages(_lockedPackageNames);
+        await AppLockNative.updateAppLockConfig(
+          _lockedPackageNames,
+          startHour: lockStartHour,
+          startMinute: lockStartMinute,
+          endHour: lockEndHour,
+          endMinute: lockEndMinute,
+        );
       } else {
-        await AppLockNative.startAppLock(_lockedPackageNames);
+        await AppLockNative.startAppLock(
+          _lockedPackageNames,
+          startHour: lockStartHour,
+          startMinute: lockStartMinute,
+          endHour: lockEndHour,
+          endMinute: lockEndMinute,
+        );
       }
     } else {
       final running = await AppLockNative.isAppLockRunning();
@@ -500,33 +538,68 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> logSleep() async {
+  Future<Map<String, dynamic>> logSleep() async {
     final duration = sleepDuration;
+    final oldLastNightSleep = lastNightSleep;
+    final oldHasLoggedToday = hasLoggedToday;
+    final oldSleepQualityPercent = sleepQualityPercent;
+    final oldNappuMood = nappuMood;
+    final oldTokens = tokens;
+    final oldStreak = streak;
+    final oldNappuXp = nappuXp;
+    final oldNappuLevel = nappuLevel;
 
-    // Optimistic UI
     lastNightSleep = duration;
     hasLoggedToday = true;
     final q = currentSleepQuality;
     sleepQualityPercent = q == 'Great' ? 95 : q == 'Good' ? 84 : q == 'Okay' ? 60 : 40;
+    nappuMood = _moodFromQuality(q);
     notifyListeners();
 
-    // Server-side RPC awards tokens, updates streak/XP atomically
-    final res = await SupabaseService.logSleep(
-      quality: currentSleepQuality,
-      bedtimeHour: currentBedtime.hour,
-      wakeupHour: currentWakeup.hour,
-      durationHours: duration,
-    );
+    try {
+      final res = await SupabaseService.logSleep(
+        quality: currentSleepQuality,
+        bedtimeHour: currentBedtime.hour,
+        bedtimeMinute: currentBedtime.minute,
+        wakeupHour: currentWakeup.hour,
+        wakeupMinute: currentWakeup.minute,
+        durationHours: duration,
+      );
 
-    if (res['success'] == true) {
-      tokens = res['tokens'] as int;
-      streak = res['streak'] as int;
-      nappuXp = res['nappu_xp'] as int;
-      nappuLevel = res['nappu_level'] as int;
+      if (res['success'] == true) {
+        tokens = res['tokens'] as int;
+        streak = res['streak'] as int;
+        nappuXp = res['nappu_xp'] as int;
+        nappuLevel = res['nappu_level'] as int;
+        await SupabaseService.updateNappuMood(nappuMood);
+        await _loadWeeklyData();
+        notifyListeners();
+        return res;
+      }
+      throw Exception(res['error'] ?? 'Unable to log sleep');
+    } catch (e) {
+      lastNightSleep = oldLastNightSleep;
+      hasLoggedToday = oldHasLoggedToday;
+      sleepQualityPercent = oldSleepQualityPercent;
+      nappuMood = oldNappuMood;
+      tokens = oldTokens;
+      streak = oldStreak;
+      nappuXp = oldNappuXp;
+      nappuLevel = oldNappuLevel;
+      errorMessage = e.toString();
+      notifyListeners();
+      return {'success': false, 'error': e.toString()};
     }
+  }
 
-    await _loadWeeklyData();
-    notifyListeners();
+  static String _moodFromQuality(String quality) {
+    switch (quality) {
+      case 'Great': return 'energized';
+      case 'Good': return 'happy';
+      case 'Okay': return 'tired';
+      case 'Poor': return 'sleepy';
+      default: return 'happy';
+    }
   }
 
   Future<void> toggleLock() async {
@@ -553,6 +626,31 @@ class AppState extends ChangeNotifier {
       'lock_end_hour': endHour,
       'lock_end_minute': endMinute,
     });
+  }
+
+  List<String> get availableAppsToAdd {
+    final currentNames = lockedApps.map((a) => a.name).toSet();
+    return appIconCatalog.keys.where((n) => !currentNames.contains(n)).toList();
+  }
+
+  Future<void> addLockedApp(String name) async {
+    lockedApps.add(LockedApp(
+      name: name,
+      packageName: _appPackages[name] ?? '',
+      icon: appIconCatalog[name] ?? Icons.apps,
+      iconColor: appColorCatalog[name] ?? Colors.grey,
+      status: 'Locked',
+    ));
+    notifyListeners();
+    await SupabaseService.addLockedApp(name);
+    _syncNativeLock();
+  }
+
+  Future<void> removeLockedApp(int index) async {
+    final app = lockedApps.removeAt(index);
+    notifyListeners();
+    await SupabaseService.removeLockedApp(app.name);
+    _syncNativeLock();
   }
 
   Future<void> toggleLockedAppStatus(int index) async {
@@ -585,6 +683,12 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<void> updateDisplayName(String name) async {
+    userName = name;
+    notifyListeners();
+    await SupabaseService.updateProfile({'display_name': name});
   }
 
   void setCategory(String category) {
@@ -641,7 +745,7 @@ class AppState extends ChangeNotifier {
     await SupabaseService.equipItem(category, item.name);
   }
 
-  void selectRoomTheme(String themeName) {
+  Future<void> selectRoomTheme(String themeName) async {
     final theme = roomThemes.firstWhere((t) => t['name'] == themeName, orElse: () => {});
     if (theme.isEmpty) return;
     // Only select if owned
@@ -650,6 +754,8 @@ class AppState extends ChangeNotifier {
       t['selected'] = t['name'] == themeName;
     }
     notifyListeners();
+    // Persist to DB (equipItem auto-unequips others in the category)
+    await SupabaseService.equipItem('Themes', themeName);
   }
 
   Future<void> purchaseRoomTheme(String themeName) async {
