@@ -318,28 +318,31 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  // ─── Actions (update local state + persist to Supabase) ─
+  // ─── Actions (optimistic UI + server-side RPC for sensitive ops) ─
 
   Future<void> toggleTask(int index) async {
     final task = sleepTasks[index];
     final newDone = !(task['done'] as bool);
-    sleepTasks[index]['done'] = newDone;
+    final coins = task['coins'] as int;
 
-    if (newDone) {
-      tokens += task['coins'] as int;
-    } else {
-      tokens -= task['coins'] as int;
-    }
+    // Optimistic UI update
+    sleepTasks[index]['done'] = newDone;
+    tokens += newDone ? coins : -coins;
     notifyListeners();
 
-    // Persist
+    // Server-side RPC handles tokens atomically
     final taskId = task['id'];
     if (taskId != null) {
-      await SupabaseService.toggleTask(taskId as int, newDone);
-      if (newDone) {
-        await SupabaseService.addTokens(task['coins'] as int, 'Task: ${task['task']}');
+      final res = await SupabaseService.toggleTask(taskId as int, newDone);
+      if (res['success'] == true) {
+        tokens = res['new_balance'] as int;
+        notifyListeners();
+      } else {
+        // Revert on failure
+        sleepTasks[index]['done'] = !newDone;
+        tokens += newDone ? -coins : coins;
+        notifyListeners();
       }
-      await SupabaseService.updateProfile({'tokens': tokens});
     }
   }
 
@@ -360,31 +363,28 @@ class AppState extends ChangeNotifier {
 
   Future<void> logSleep() async {
     final duration = sleepDuration.toDouble();
-    tokens += 50;
-    nappuXp += 30;
-    if (nappuXp >= nappuMaxXp) {
-      nappuLevel++;
-      nappuXp -= nappuMaxXp;
-    }
-    streak++;
+
+    // Optimistic UI
     lastNightSleep = duration;
     final q = currentSleepQuality;
     sleepQualityPercent = q == 'Great' ? 95 : q == 'Good' ? 84 : q == 'Okay' ? 60 : 40;
     notifyListeners();
 
-    // Persist
-    await SupabaseService.logSleep(
+    // Server-side RPC awards tokens, updates streak/XP atomically
+    final res = await SupabaseService.logSleep(
       quality: currentSleepQuality,
       bedtimeHour: currentBedtime,
       wakeupHour: currentWakeup,
       durationHours: duration,
     );
-    await SupabaseService.updateProfile({
-      'tokens': tokens,
-      'streak': streak,
-      'nappu_xp': nappuXp,
-      'nappu_level': nappuLevel,
-    });
+
+    if (res['success'] == true) {
+      tokens = res['tokens'] as int;
+      streak = res['streak'] as int;
+      nappuXp = res['nappu_xp'] as int;
+      nappuLevel = res['nappu_level'] as int;
+    }
+
     await _loadWeeklyData();
     notifyListeners();
   }
@@ -401,23 +401,35 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> purchaseItem(ShopItem item, String category) async {
-    if (tokens >= item.price) {
-      tokens -= item.price;
-      List<ShopItem> list;
-      switch (category) {
-        case 'Hats': list = hats; break;
-        case 'Outfits': list = outfits; break;
-        default: list = accessories;
-      }
-      final idx = list.indexOf(item);
+    if (tokens < item.price) return;
+
+    // Optimistic UI
+    final oldTokens = tokens;
+    tokens -= item.price;
+    List<ShopItem> list;
+    switch (category) {
+      case 'Hats': list = hats; break;
+      case 'Outfits': list = outfits; break;
+      default: list = accessories;
+    }
+    final idx = list.indexOf(item);
+    if (idx != -1) {
+      list[idx] = item.copyWith(owned: true);
+    }
+    notifyListeners();
+
+    // Server-side RPC checks balance + deducts atomically
+    final res = await SupabaseService.purchaseItem(category, item.name, item.price);
+    if (res['success'] == true) {
+      tokens = res['new_balance'] as int;
+      notifyListeners();
+    } else {
+      // Revert on failure
+      tokens = oldTokens;
       if (idx != -1) {
-        list[idx] = item.copyWith(owned: true);
+        list[idx] = item.copyWith(owned: false);
       }
       notifyListeners();
-
-      await SupabaseService.purchaseItem(category, item.name);
-      await SupabaseService.addTokens(-item.price, 'Purchase: ${item.name}');
-      await SupabaseService.updateProfile({'tokens': tokens});
     }
   }
 
@@ -433,6 +445,7 @@ class AppState extends ChangeNotifier {
     }
     notifyListeners();
 
+    // Equip is low-risk, direct write is fine
     await SupabaseService.equipItem(category, item.name);
   }
 

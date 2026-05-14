@@ -53,62 +53,33 @@ class SupabaseService {
     await client.from('profiles').update(data).eq('id', userId!);
   }
 
-  static Future<void> addTokens(int amount, String reason) async {
-    if (userId == null) return;
-    // Update balance
-    final profile = await getProfile();
-    if (profile == null) return;
-    final newBalance = (profile['tokens'] as int) + amount;
-    await updateProfile({'tokens': newBalance});
-    // Log transaction
-    await client.from('token_transactions').insert({
-      'user_id': userId,
-      'amount': amount,
-      'reason': reason,
-    });
-  }
+  // Token/streak/level mutations are handled by RPC functions server-side.
+  // These safe update methods are kept for display_name, nappu_mood, etc.
 
-  static Future<void> updateStreak(int streak) async {
-    await updateProfile({'streak': streak});
-  }
-
-  static Future<void> updateNappuStats({
-    int? level,
-    int? xp,
-    String? mood,
-  }) async {
-    final data = <String, dynamic>{};
-    if (level != null) data['nappu_level'] = level;
-    if (xp != null) data['nappu_xp'] = xp;
-    if (mood != null) data['nappu_mood'] = mood;
-    if (data.isNotEmpty) await updateProfile(data);
+  static Future<void> updateNappuMood(String mood) async {
+    await updateProfile({'nappu_mood': mood});
   }
 
   // ─── Sleep Logs ─────────────────────────────────────────
 
-  static Future<void> logSleep({
+  /// Logs sleep via server-side RPC. Awards tokens, updates streak/XP atomically.
+  /// Returns {success, first_log_today, tokens, streak, nappu_xp, nappu_level}.
+  static Future<Map<String, dynamic>> logSleep({
     required String quality,
     required int bedtimeHour,
     required int wakeupHour,
     required double durationHours,
     int tokensEarned = 50,
   }) async {
-    if (userId == null) return;
-    final today = DateTime.now();
-    final dateStr =
-        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-
-    await client.from('sleep_logs').upsert({
-      'user_id': userId,
-      'log_date': dateStr,
-      'quality': quality,
-      'bedtime_hour': bedtimeHour,
-      'wakeup_hour': wakeupHour,
-      'duration_hours': durationHours,
-      'tokens_earned': tokensEarned,
-    }, onConflict: 'user_id,log_date');
-
-    await addTokens(tokensEarned, 'Sleep log');
+    if (userId == null) return {'success': false};
+    final res = await client.rpc('log_sleep', params: {
+      'p_quality': quality,
+      'p_bedtime_hour': bedtimeHour,
+      'p_wakeup_hour': wakeupHour,
+      'p_duration_hours': durationHours,
+      'p_tokens_earned': tokensEarned,
+    });
+    return Map<String, dynamic>.from(res as Map);
   }
 
   static Future<List<Map<String, dynamic>>> getWeeklySleepLogs() async {
@@ -182,10 +153,12 @@ class SupabaseService {
     }
   }
 
-  static Future<void> toggleTask(int taskId, bool completed) async {
-    await client
-        .from('sleep_tasks')
-        .update({'completed': completed}).eq('id', taskId);
+  /// Complete/uncomplete a task via server-side RPC.
+  /// Returns {success, tokens_awarded/deducted, new_balance} or {success: false, error}.
+  static Future<Map<String, dynamic>> toggleTask(int taskId, bool completed) async {
+    final fn = completed ? 'complete_daily_task' : 'uncomplete_daily_task';
+    final res = await client.rpc(fn, params: {'p_task_id': taskId});
+    return Map<String, dynamic>.from(res as Map);
   }
 
   // ─── App Lock ───────────────────────────────────────────
@@ -243,16 +216,17 @@ class SupabaseService {
     return List<Map<String, dynamic>>.from(res);
   }
 
-  static Future<void> purchaseItem(String category, String itemName) async {
-    if (userId == null) return;
-    await client
-        .from('inventory')
-        .upsert({
-          'user_id': userId,
-          'category': category,
-          'item_name': itemName,
-          'owned': true,
-        }, onConflict: 'user_id,category,item_name');
+  /// Purchase item via server-side RPC. Checks balance, deducts tokens atomically.
+  /// Returns {success, new_balance} or {success: false, error}.
+  static Future<Map<String, dynamic>> purchaseItem(
+      String category, String itemName, int price) async {
+    if (userId == null) return {'success': false};
+    final res = await client.rpc('purchase_shop_item', params: {
+      'p_category': category,
+      'p_item_name': itemName,
+      'p_price': price,
+    });
+    return Map<String, dynamic>.from(res as Map);
   }
 
   static Future<void> equipItem(String category, String itemName) async {
@@ -286,46 +260,11 @@ class SupabaseService {
     return res;
   }
 
-  static Future<void> generateBiweeklyInsight() async {
-    if (userId == null) return;
-    final now = DateTime.now();
-    final twoWeeksAgo = now.subtract(const Duration(days: 14));
-    final fromStr =
-        '${twoWeeksAgo.year}-${twoWeeksAgo.month.toString().padLeft(2, '0')}-${twoWeeksAgo.day.toString().padLeft(2, '0')}';
-    final toStr =
-        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-
-    final logs = await client
-        .from('sleep_logs')
-        .select('duration_hours')
-        .eq('user_id', userId!)
-        .gte('log_date', fromStr)
-        .lte('log_date', toStr);
-
-    if (logs.isEmpty) return;
-
-    final durations =
-        logs.map((l) => (l['duration_hours'] as num).toDouble()).toList();
-    final avg = durations.reduce((a, b) => a + b) / durations.length;
-
-    String insightText;
-    if (avg >= 7 && avg <= 9) {
-      insightText =
-          'Your average sleep is ${avg.toStringAsFixed(1)} hrs — within the ideal range. Keep it up! 🌟';
-    } else if (avg < 7) {
-      insightText =
-          'Your average sleep is ${avg.toStringAsFixed(1)} hrs — slightly below ideal. Try sleeping 20 min earlier on weekdays. 🌙';
-    } else {
-      insightText =
-          'Your average sleep is ${avg.toStringAsFixed(1)} hrs — above average. Make sure you\'re not oversleeping. ☀️';
-    }
-
-    await client.from('biweekly_insights').insert({
-      'user_id': userId,
-      'period_start': fromStr,
-      'period_end': toStr,
-      'avg_sleep_hours': avg,
-      'insight_text': insightText,
-    });
+  /// Generate biweekly insight via server-side RPC.
+  /// Returns {success, avg_sleep_hours, insight_text, log_count} or {success: false, error}.
+  static Future<Map<String, dynamic>> generateBiweeklyInsight() async {
+    if (userId == null) return {'success': false};
+    final res = await client.rpc('generate_biweekly_insight');
+    return Map<String, dynamic>.from(res as Map);
   }
 }
