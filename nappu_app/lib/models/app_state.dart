@@ -61,6 +61,32 @@ class ShopItem {
   }
 }
 
+class RoomTheme {
+  final String name;
+  final String emoji;
+  final int price;
+  final bool owned;
+  final bool selected;
+
+  RoomTheme({
+    required this.name,
+    required this.emoji,
+    required this.price,
+    this.owned = false,
+    this.selected = false,
+  });
+
+  RoomTheme copyWith({bool? owned, bool? selected}) {
+    return RoomTheme(
+      name: name,
+      emoji: emoji,
+      price: price,
+      owned: owned ?? this.owned,
+      selected: selected ?? this.selected,
+    );
+  }
+}
+
 // Emoji lookup for shop items (static catalog)
 const Map<String, String> _itemEmojis = {
   'Top Hat': '🎩', 'Cap': '🧢', 'Crown': '👑', 'Flower': '🌸',
@@ -165,7 +191,7 @@ class AppState extends ChangeNotifier {
   List<ShopItem> hats = [];
   List<ShopItem> outfits = [];
   List<ShopItem> accessories = [];
-  List<Map<String, dynamic>> roomThemes = [];
+  List<RoomTheme> roomThemes = [];
 
   String currentSleepQuality = 'Good';
   TimeOfDay currentBedtime = const TimeOfDay(hour: 22, minute: 0);
@@ -258,8 +284,8 @@ class AppState extends ChangeNotifier {
   }
 
   String get selectedThemeName {
-    final t = roomThemes.where((t) => t['selected'] == true).firstOrNull;
-    return (t?['name'] as String?) ?? 'Night Sky';
+    final t = roomThemes.where((t) => t.selected).firstOrNull;
+    return t?.name ?? 'Night Sky';
   }
 
   String get lockDurationText {
@@ -352,9 +378,9 @@ class AppState extends ChangeNotifier {
       ShopItem(name: 'Moon Lamp', emoji: '🌙', price: 120),
     ];
     roomThemes = [
-      {'name': 'Night Sky', 'emoji': '🌙', 'price': 0, 'owned': true, 'selected': true},
-      {'name': 'Sakura', 'emoji': '🌸', 'price': 0, 'owned': true, 'selected': false},
-      {'name': 'Mountain', 'emoji': '⛰️', 'price': 150, 'owned': false, 'selected': false},
+      RoomTheme(name: 'Night Sky', emoji: '🌙', price: 0, owned: true, selected: true),
+      RoomTheme(name: 'Sakura', emoji: '🌸', price: 0, owned: true, selected: false),
+      RoomTheme(name: 'Mountain', emoji: '⛰️', price: 150, owned: false, selected: false),
     ];
   }
 
@@ -486,10 +512,9 @@ class AppState extends ChangeNotifier {
         final equipped = item['equipped'] as bool;
 
         if (category == 'Themes') {
-          final idx = roomThemes.indexWhere((t) => t['name'] == name);
+          final idx = roomThemes.indexWhere((t) => t.name == name);
           if (idx != -1) {
-            roomThemes[idx]['owned'] = owned;
-            roomThemes[idx]['selected'] = equipped;
+            roomThemes[idx] = roomThemes[idx].copyWith(owned: owned, selected: equipped);
           }
         } else {
           final list = category == 'Hats' ? hats : category == 'Outfits' ? outfits : accessories;
@@ -848,43 +873,46 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> selectRoomTheme(String themeName) async {
-    final theme = roomThemes.firstWhere((t) => t['name'] == themeName, orElse: () => {});
-    if (theme.isEmpty) return;
-    // Only select if owned
-    if (theme['owned'] != true) return;
-    for (var t in roomThemes) {
-      t['selected'] = t['name'] == themeName;
+    final idx = roomThemes.indexWhere((t) => t.name == themeName);
+    if (idx == -1 || !roomThemes[idx].owned) return;
+    for (int i = 0; i < roomThemes.length; i++) {
+      roomThemes[i] = roomThemes[i].copyWith(selected: roomThemes[i].name == themeName);
     }
     notifyListeners();
-    // Persist to DB (equipItem auto-unequips others in the category)
     await SupabaseService.equipItem('Themes', themeName);
   }
 
   Future<void> purchaseRoomTheme(String themeName) async {
-    final theme = roomThemes.firstWhere((t) => t['name'] == themeName, orElse: () => {});
-    if (theme.isEmpty || theme['owned'] == true) return;
-    final price = theme['price'] as int;
+    final idx = roomThemes.indexWhere((t) => t.name == themeName);
+    if (idx == -1 || roomThemes[idx].owned) return;
+    final price = roomThemes[idx].price;
     if (tokens < price) return;
 
-    // Optimistic UI
     final oldTokens = tokens;
+    final oldThemes = roomThemes.map((t) => t.copyWith()).toList();
     tokens -= price;
-    theme['owned'] = true;
-    theme['selected'] = true;
-    for (var t in roomThemes) {
-      if (t['name'] != themeName) t['selected'] = false;
+    for (int i = 0; i < roomThemes.length; i++) {
+      roomThemes[i] = roomThemes[i].copyWith(
+        owned: i == idx ? true : null,
+        selected: i == idx,
+      );
     }
     notifyListeners();
 
-    final res = await SupabaseService.purchaseItem('Themes', themeName, price);
-    if (res['success'] == true) {
-      tokens = res['new_balance'] as int;
-      notifyListeners();
-    } else {
-      // Revert
+    try {
+      final res = await SupabaseService.purchaseItem('Themes', themeName, price);
+      if (res['success'] == true) {
+        tokens = res['new_balance'] as int;
+        notifyListeners();
+      } else {
+        tokens = oldTokens;
+        roomThemes = oldThemes;
+        notifyListeners();
+      }
+    } catch (e) {
       tokens = oldTokens;
-      theme['owned'] = false;
-      theme['selected'] = false;
+      roomThemes = oldThemes;
+      _setError(e.toString());
       notifyListeners();
     }
   }

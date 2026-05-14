@@ -434,25 +434,21 @@ class _NappuScreenState extends State<NappuScreen> {
         const SizedBox(height: 12),
         Row(
           children: state.roomThemes.map((theme) {
-            final selected = theme['selected'] as bool;
-            final owned = theme['owned'] as bool;
             return Expanded(
               child: GestureDetector(
                 onTap: () async {
-                  final name = theme['name'] as String;
-                  if (theme['owned'] == true) {
-                    state.selectRoomTheme(name);
+                  if (theme.owned) {
+                    state.selectRoomTheme(theme.name);
                   } else {
-                    final price = theme['price'] as int;
-                    if (state.tokens < price) {
+                    if (state.tokens < theme.price) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Not enough tokens!'), backgroundColor: AppColors.red),
                       );
                       return;
                     }
-                    final confirmed = await _confirmPurchase(name, price);
+                    final confirmed = await _confirmPurchase(theme.name, theme.price);
                     if (confirmed) {
-                      state.purchaseRoomTheme(name);
+                      state.purchaseRoomTheme(theme.name);
                     }
                   }
                 },
@@ -460,26 +456,26 @@ class _NappuScreenState extends State<NappuScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.surfaceLight : AppColors.card,
+                    color: theme.selected ? AppColors.surfaceLight : AppColors.card,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: selected ? AppColors.gold : AppColors.cardBorder,
-                      width: selected ? 2 : 1,
+                      color: theme.selected ? AppColors.gold : AppColors.cardBorder,
+                      width: theme.selected ? 2 : 1,
                     ),
                   ),
                   child: Column(
                     children: [
-                      Text(theme['emoji'] as String, style: const TextStyle(fontSize: 28)),
+                      Text(theme.emoji, style: const TextStyle(fontSize: 28)),
                       const SizedBox(height: 6),
                       Text(
-                        theme['name'] as String,
+                        theme.name,
                         style: TextStyle(
-                          color: selected ? AppColors.textPrimary : AppColors.textSecondary,
+                          color: theme.selected ? AppColors.textPrimary : AppColors.textSecondary,
                           fontSize: 12,
-                          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight: theme.selected ? FontWeight.w600 : FontWeight.normal,
                         ),
                       ),
-                      if (!owned)
+                      if (!theme.owned)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Row(
@@ -488,7 +484,7 @@ class _NappuScreenState extends State<NappuScreen> {
                               const Text('🪙', style: TextStyle(fontSize: 10)),
                               const SizedBox(width: 2),
                               Text(
-                                '${theme['price']}',
+                                '${theme.price}',
                                 style: const TextStyle(
                                   color: AppColors.gold,
                                   fontSize: 10,

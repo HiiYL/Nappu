@@ -602,6 +602,26 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
+        if (state.sleepTasks.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.cardBorder, width: 1),
+            ),
+            child: const Column(
+              children: [
+                Text('😴', style: TextStyle(fontSize: 28)),
+                SizedBox(height: 8),
+                Text(
+                  'No tasks yet — pull down to refresh',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
         ...state.sleepTasks.asMap().entries.map((entry) {
           final i = entry.key;
           final task = entry.value;

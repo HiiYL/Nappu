@@ -310,6 +310,69 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
 
   Widget _buildLogButton(AppState state) {
     final logged = state.hasLoggedToday;
+
+    if (logged && !_isSaving) {
+      // ── Already logged today: show success state + subtle update option ──
+      return Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            decoration: BoxDecoration(
+              color: AppColors.green.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.green.withValues(alpha: 0.4), width: 1),
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle, color: AppColors.green, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Sleep Logged Today',
+                  style: TextStyle(
+                    color: AppColors.green,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () async {
+              setState(() => _isSaving = true);
+              final messenger = ScaffoldMessenger.of(context);
+              final res = await state.logSleep();
+              if (mounted) {
+                final success = res['success'] == true;
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(success ? '✅ Sleep log updated' : '⚠️ Could not update'),
+                    backgroundColor: success ? AppColors.green : AppColors.red,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+              if (mounted) setState(() => _isSaving = false);
+            },
+            child: const Text(
+              'Tap to update sleep log',
+              style: TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // ── Not logged yet (or currently saving): show primary action button ──
     return GestureDetector(
       onTap: _isSaving ? null : () async {
         setState(() => _isSaving = true);
@@ -349,16 +412,9 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            gradient: logged
-                ? LinearGradient(
-                    colors: [
-                      AppColors.accent.withValues(alpha: 0.75),
-                      AppColors.blue.withValues(alpha: 0.75),
-                    ],
-                  )
-                : const LinearGradient(
-                    colors: [AppColors.gradientStart, AppColors.gradientEnd],
-                  ),
+            gradient: const LinearGradient(
+              colors: [AppColors.gradientStart, AppColors.gradientEnd],
+            ),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
@@ -370,15 +426,15 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                   child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                 )
               else ...[
-                Text(
-                  logged ? 'Update Today\'s Sleep' : 'Log Sleep + Earn 50 ',
-                  style: const TextStyle(
+                const Text(
+                  'Log Sleep + Earn 50 ',
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (!logged) const Text('🪙', style: TextStyle(fontSize: 18)),
+                const Text('🪙', style: TextStyle(fontSize: 18)),
               ],
             ],
           ),
