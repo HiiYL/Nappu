@@ -608,10 +608,18 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> toggleLock() async {
+    final oldEnabled = lockEnabled;
     lockEnabled = !lockEnabled;
+    errorMessage = null;
     notifyListeners();
-    await SupabaseService.updateAppLockSettings({'enabled': lockEnabled});
-    _syncNativeLock();
+    try {
+      await SupabaseService.updateAppLockSettings({'enabled': lockEnabled});
+      await _syncNativeLock();
+    } catch (e) {
+      lockEnabled = oldEnabled;
+      errorMessage = e.toString();
+      notifyListeners();
+    }
   }
 
   Future<void> updateLockSchedule({
@@ -620,17 +628,32 @@ class AppState extends ChangeNotifier {
     required int endHour,
     required int endMinute,
   }) async {
+    final oldStartHour = lockStartHour;
+    final oldStartMinute = lockStartMinute;
+    final oldEndHour = lockEndHour;
+    final oldEndMinute = lockEndMinute;
     lockStartHour = startHour;
     lockStartMinute = startMinute;
     lockEndHour = endHour;
     lockEndMinute = endMinute;
+    errorMessage = null;
     notifyListeners();
-    await SupabaseService.updateAppLockSettings({
-      'lock_start_hour': startHour,
-      'lock_start_minute': startMinute,
-      'lock_end_hour': endHour,
-      'lock_end_minute': endMinute,
-    });
+    try {
+      await SupabaseService.updateAppLockSettings({
+        'lock_start_hour': startHour,
+        'lock_start_minute': startMinute,
+        'lock_end_hour': endHour,
+        'lock_end_minute': endMinute,
+      });
+      await _syncNativeLock();
+    } catch (e) {
+      lockStartHour = oldStartHour;
+      lockStartMinute = oldStartMinute;
+      lockEndHour = oldEndHour;
+      lockEndMinute = oldEndMinute;
+      errorMessage = e.toString();
+      notifyListeners();
+    }
   }
 
   List<String> get availableAppsToAdd {
@@ -639,52 +662,80 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> addLockedApp(String name) async {
-    lockedApps.add(LockedApp(
+    final app = LockedApp(
       name: name,
       packageName: _appPackages[name] ?? '',
       icon: appIconCatalog[name] ?? Icons.apps,
       iconColor: appColorCatalog[name] ?? Colors.grey,
       status: 'Locked',
-    ));
+    );
+    lockedApps.add(app);
+    errorMessage = null;
     notifyListeners();
-    await SupabaseService.addLockedApp(name);
-    _syncNativeLock();
+    try {
+      await SupabaseService.addLockedApp(name);
+      await _syncNativeLock();
+    } catch (e) {
+      lockedApps.remove(app);
+      errorMessage = e.toString();
+      notifyListeners();
+    }
   }
 
   Future<void> removeLockedApp(int index) async {
     final app = lockedApps.removeAt(index);
+    errorMessage = null;
     notifyListeners();
-    await SupabaseService.removeLockedApp(app.name);
-    _syncNativeLock();
+    try {
+      await SupabaseService.removeLockedApp(app.name);
+      await _syncNativeLock();
+    } catch (e) {
+      lockedApps.insert(index, app);
+      errorMessage = e.toString();
+      notifyListeners();
+    }
   }
 
   Future<void> toggleLockedAppStatus(int index) async {
     final app = lockedApps[index];
-    final newStatus = app.status == 'Locked' ? 'Reminder' : 'Locked';
+    final oldStatus = app.status;
+    final newStatus = oldStatus == 'Locked' ? 'Reminder' : 'Locked';
     app.status = newStatus;
+    errorMessage = null;
     notifyListeners();
-    await SupabaseService.updateLockedAppStatus(app.name, newStatus);
-    _syncNativeLock();
+    try {
+      await SupabaseService.updateLockedAppStatus(app.name, newStatus);
+      await _syncNativeLock();
+    } catch (e) {
+      app.status = oldStatus;
+      errorMessage = e.toString();
+      notifyListeners();
+    }
   }
 
   Future<bool> emergencyOverride() async {
     const cost = 50;
     if (tokens < cost) return false;
 
-    // Optimistic UI
     final oldTokens = tokens;
     tokens -= cost;
+    errorMessage = null;
     notifyListeners();
 
-    final res = await SupabaseService.purchaseItem('Override', 'Emergency Unlock', cost);
-    if (res['success'] == true) {
-      tokens = res['new_balance'] as int;
-      notifyListeners();
-      // 15-minute native override
-      AppLockNative.emergencyOverride(durationMs: 15 * 60 * 1000);
-      return true;
-    } else {
+    try {
+      final res = await SupabaseService.spendEmergencyOverrideTokens(cost: cost);
+      if (res['success'] == true) {
+        tokens = res['new_balance'] as int;
+        notifyListeners();
+        await AppLockNative.emergencyOverride(durationMs: 15 * 60 * 1000);
+        return true;
+      }
       tokens = oldTokens;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      tokens = oldTokens;
+      errorMessage = e.toString();
       notifyListeners();
       return false;
     }

@@ -251,6 +251,14 @@ class SupabaseService {
     return Map<String, dynamic>.from(res as Map);
   }
 
+  static Future<Map<String, dynamic>> spendEmergencyOverrideTokens({int cost = 50}) async {
+    if (userId == null) return {'success': false};
+    final res = await client.rpc('spend_emergency_override_tokens', params: {
+      'p_cost': cost,
+    });
+    return Map<String, dynamic>.from(res as Map);
+  }
+
   static Future<void> equipItem(String category, String itemName) async {
     if (userId == null) return;
     // Unequip all in category

@@ -1,8 +1,12 @@
-.PHONY: run build install clean analyze test
+.PHONY: run run-web build-debug build-release build-web install clean analyze test
 
 # Deploy debug build to connected Android device
 run:
 	flutter run -d $(shell flutter devices | grep android | head -1 | sed 's/.*• \([^ ]*\) •.*/\1/')
+
+# Run on Chrome for local web testing
+run-web:
+	flutter run -d chrome
 
 # Build debug APK
 build-debug:
