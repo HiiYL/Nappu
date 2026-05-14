@@ -48,8 +48,6 @@ class AppTheme {
         selectedItemColor: AppColors.gold,
         unselectedItemColor: AppColors.textMuted,
         type: BottomNavigationBarType.fixed,
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
       ),
     );
   }
