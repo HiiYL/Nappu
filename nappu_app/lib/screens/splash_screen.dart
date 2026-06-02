@@ -62,8 +62,13 @@ class _SplashScreenState extends State<SplashScreen>
                       colors: [Color(0xFF1a2a4a), Color(0xFF0f1a2e)],
                     ),
                   ),
-                  child: const Center(
-                    child: Text('🐑', style: TextStyle(fontSize: 80)),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/nappu/nappu_suggests.png',
+                      width: 140,
+                      height: 140,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 28),

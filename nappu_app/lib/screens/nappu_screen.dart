@@ -146,29 +146,10 @@ class _NappuScreenState extends State<NappuScreen> {
           // Scenery row
           Text(scenery, style: const TextStyle(fontSize: 18, letterSpacing: 8)),
           const SizedBox(height: 8),
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              const Text('🐑', style: TextStyle(fontSize: 70)),
-              if (state.equippedHatEmoji.isNotEmpty)
-                Positioned(
-                  top: 0,
-                  right: 40,
-                  child: Text(state.equippedHatEmoji, style: const TextStyle(fontSize: 24)),
-                ),
-              if (state.equippedOutfitEmoji.isNotEmpty)
-                Positioned(
-                  bottom: 5,
-                  right: 35,
-                  child: Text(state.equippedOutfitEmoji, style: const TextStyle(fontSize: 20)),
-                ),
-              if (state.equippedAccessoryEmoji.isNotEmpty)
-                Positioned(
-                  bottom: 0,
-                  left: 40,
-                  child: Text(state.equippedAccessoryEmoji, style: const TextStyle(fontSize: 22)),
-                ),
-            ],
+          Image.asset(
+            'assets/images/nappu/nappu_customize.png',
+            height: 120,
+            fit: BoxFit.contain,
           ),
           const SizedBox(height: 12),
           Container(

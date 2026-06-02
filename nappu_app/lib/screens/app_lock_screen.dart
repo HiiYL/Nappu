@@ -382,7 +382,14 @@ class _AppLockScreenState extends State<AppLockScreen> {
       ),
       child: Row(
         children: [
-          const Text('🐑', style: TextStyle(fontSize: 28)),
+          ClipOval(
+            child: Image.asset(
+              'assets/images/nappu/nappu_suggests.png',
+              width: 40,
+              height: 40,
+              fit: BoxFit.cover,
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -677,11 +684,19 @@ class _AppLockScreenState extends State<AppLockScreen> {
             const SizedBox(height: 6),
             Row(
               children: [
-                const Text('🐑', style: TextStyle(fontSize: 22)),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.asset(
+                    'assets/images/nappu/nappu_sick.png',
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.cover,
+                  ),
+                ),
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
-                    'Breaking the lock makes Nappu sick! Costs 🪙 150 to heal.',
+                    'Breaking the lock makes Nappu sick! Costs 150 tokens to heal.',
                     style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11,

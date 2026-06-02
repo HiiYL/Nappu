@@ -154,7 +154,12 @@ class _DataLoaderState extends State<_DataLoader> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('🐑', style: TextStyle(fontSize: 56)),
+            Image.asset(
+              'assets/images/nappu/nappu.png',
+              width: 80,
+              height: 80,
+              fit: BoxFit.contain,
+            ),
             const SizedBox(height: 16),
             if (_loadError != null) ...[
               Padding(
@@ -240,11 +245,11 @@ class _MainShellState extends State<MainShell> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildEmojiNavItem(0, '🏠', 'Home'),
-                _buildEmojiNavItem(1, '🌙', 'Sleep Log'),
-                _buildEmojiNavItem(2, '🔒', 'App Lock'),
-                _buildEmojiNavItem(3, '👥', 'Friends'),
-                _buildEmojiNavItem(4, '🐑', 'Nappu'),
+                _buildNavItem(0, 'assets/images/nav/home.png', 'Home'),
+                _buildNavItem(1, 'assets/images/nav/sleep_log.png', 'Sleep Log'),
+                _buildNavItem(2, 'assets/images/nav/app_lock.png', 'App Lock'),
+                _buildNavItem(3, 'assets/images/nav/friends.png', 'Friends'),
+                _buildNavItem(4, 'assets/images/nav/nappu.png', 'Nappu'),
               ],
             ),
           ),
@@ -253,7 +258,7 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _buildEmojiNavItem(int index, String emoji, String label) {
+  Widget _buildNavItem(int index, String assetPath, String label) {
     final selected = _currentIndex == index;
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
@@ -263,11 +268,13 @@ class _MainShellState extends State<MainShell> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              emoji,
-              style: TextStyle(
-                fontSize: 22,
-                color: selected ? null : AppColors.textMuted,
+            Opacity(
+              opacity: selected ? 1.0 : 0.5,
+              child: Image.asset(
+                assetPath,
+                width: 28,
+                height: 28,
+                fit: BoxFit.contain,
               ),
             ),
             const SizedBox(height: 3),

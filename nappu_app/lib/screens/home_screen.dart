@@ -232,7 +232,14 @@ class HomeScreen extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text('\ud83d\udc11', style: TextStyle(fontSize: 32)),
+              ClipOval(
+                child: Image.asset(
+                  'assets/images/nappu/nappu_suggests.png',
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.cover,
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -410,193 +417,11 @@ class HomeScreen extends StatelessWidget {
   Widget _buildNappuScene(AppState state) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(18),
-      child: Container(
-        height: 240,
+      child: Image.asset(
+        'assets/images/nappu/bedroom.png',
+        height: 220,
         width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.cardBorder, width: 1),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final w = constraints.maxWidth;
-            final cx = w / 2; // center x
-            return Stack(
-              children: [
-                // Sky
-                Positioned.fill(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xFF0d1b3e), Color(0xFF162040)],
-                      ),
-                    ),
-                  ),
-                ),
-                // Wooden floor
-                Positioned(
-                  left: 0, right: 0, bottom: 0, height: 85,
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xFF5a3e28), Color(0xFF4a3220)],
-                      ),
-                    ),
-                    child: CustomPaint(painter: _FloorBoardPainter()),
-                  ),
-                ),
-                // Stars
-                Positioned(top: 14, left: cx - 80, child: const Text('\u2b50', style: TextStyle(fontSize: 12))),
-                Positioned(top: 8, left: cx + 60, child: const Text('\u2b50', style: TextStyle(fontSize: 10))),
-                Positioned(top: 28, left: cx - 40, child: const Text('\u2728', style: TextStyle(fontSize: 10))),
-                Positioned(top: 18, left: cx + 30, child: const Text('\u2728', style: TextStyle(fontSize: 8))),
-                Positioned(top: 40, left: cx + 80, child: const Text('\u2b50', style: TextStyle(fontSize: 8))),
-                // Moon
-                Positioned(
-                  top: 10, left: cx + 40,
-                  child: const Text('\ud83c\udf19', style: TextStyle(fontSize: 30)),
-                ),
-                // Window (left wall)
-                Positioned(
-                  top: 30, left: cx - 120,
-                  child: Container(
-                    width: 44, height: 56,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1a2550),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
-                      border: Border.all(color: const Color(0xFF3e4a70), width: 1.5),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('\ud83c\udf19', style: TextStyle(fontSize: 14)),
-                        Container(width: 30, height: 1, color: const Color(0xFF3e4a70)),
-                        const Text('\u2b50', style: TextStyle(fontSize: 10)),
-                      ],
-                    ),
-                  ),
-                ),
-                // Framed picture (right wall)
-                Positioned(
-                  top: 34, left: cx + 65,
-                  child: Container(
-                    width: 42, height: 34,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1a2550),
-                      borderRadius: BorderRadius.circular(3),
-                      border: Border.all(color: const Color(0xFF6a5a40), width: 2),
-                    ),
-                    child: const Center(
-                      child: Text('\u26f0\ufe0f', style: TextStyle(fontSize: 16)),
-                    ),
-                  ),
-                ),
-                // Floor lamp (right of center)
-                Positioned(
-                  bottom: 55, left: cx + 80,
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 28, height: 18,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFe8c860),
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(14), bottom: Radius.circular(4)),
-                        ),
-                      ),
-                      Container(width: 3, height: 40, color: const Color(0xFF8a7a60)),
-                      Container(
-                        width: 16, height: 4,
-                        decoration: BoxDecoration(color: const Color(0xFF8a7a60), borderRadius: BorderRadius.circular(2)),
-                      ),
-                    ],
-                  ),
-                ),
-                // Bed (centered, slightly left)
-                Positioned(
-                  bottom: 60, left: cx - 100,
-                  child: SizedBox(
-                    width: 120, height: 60,
-                    child: Stack(
-                      children: [
-                        // Bed frame
-                        Positioned(
-                          bottom: 0, left: 0, right: 0,
-                          child: Container(
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6a8a7a),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xFF5a7a6a), width: 1),
-                            ),
-                          ),
-                        ),
-                        // Headboard
-                        Positioned(
-                          bottom: 10, left: 0,
-                          child: Container(
-                            width: 14, height: 44,
-                            decoration: BoxDecoration(color: const Color(0xFF7a5a3a), borderRadius: BorderRadius.circular(4)),
-                          ),
-                        ),
-                        // Footboard
-                        Positioned(
-                          bottom: 10, right: 0,
-                          child: Container(
-                            width: 10, height: 30,
-                            decoration: BoxDecoration(color: const Color(0xFF7a5a3a), borderRadius: BorderRadius.circular(3)),
-                          ),
-                        ),
-                        // Pillow
-                        Positioned(
-                          bottom: 26, left: 18,
-                          child: Container(
-                            width: 30, height: 18,
-                            decoration: BoxDecoration(color: const Color(0xFFe8e0d0), borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                        // Blanket
-                        Positioned(
-                          bottom: 16, left: 30, right: 14,
-                          child: Container(
-                            height: 20,
-                            decoration: BoxDecoration(color: const Color(0xFF5a8a7a), borderRadius: BorderRadius.circular(4)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // Nappu sheep (center-right, beside bed)
-                Positioned(
-                  bottom: 68, left: cx + 10,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Text('\ud83d\udc11', style: TextStyle(fontSize: 52)),
-                      // Zzz
-                      const Positioned(
-                        top: -14, right: -8,
-                        child: Text('Zzz', style: TextStyle(
-                          fontSize: 12, color: Color(0xFF8899cc),
-                          fontWeight: FontWeight.bold, fontStyle: FontStyle.italic,
-                        )),
-                      ),
-                      if (state.equippedHatEmoji.isNotEmpty)
-                        Positioned(
-                          top: -8, left: 8,
-                          child: Text(state.equippedHatEmoji, style: const TextStyle(fontSize: 18)),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
+        fit: BoxFit.cover,
       ),
     );
   }
@@ -885,7 +710,7 @@ class HomeScreen extends StatelessWidget {
             ),
             child: const Column(
               children: [
-                Text('😴', style: TextStyle(fontSize: 28)),
+                Text('\ud83d\ude34', style: TextStyle(fontSize: 28)),
                 SizedBox(height: 8),
                 Text(
                   'No tasks yet — pull down to refresh',
@@ -962,26 +787,3 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class _FloorBoardPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF4a3420)
-      ..strokeWidth = 0.5;
-    // Horizontal plank lines
-    for (double y = 20; y < size.height; y += 22) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-    // Staggered vertical joints
-    for (int row = 0; row < 4; row++) {
-      final yTop = row * 22.0;
-      final offset = row.isOdd ? size.width * 0.33 : 0.0;
-      for (double x = offset; x < size.width; x += size.width * 0.33) {
-        canvas.drawLine(Offset(x, yTop), Offset(x, yTop + 22), paint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

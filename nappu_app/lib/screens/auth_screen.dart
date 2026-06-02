@@ -115,8 +115,13 @@ class _AuthScreenState extends State<AuthScreen> {
                     width: 2,
                   ),
                 ),
-                child: const Center(
-                  child: Text('🐑', style: TextStyle(fontSize: 48)),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/nappu/nappu_suggests.png',
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),

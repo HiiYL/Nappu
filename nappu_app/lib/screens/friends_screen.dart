@@ -82,7 +82,14 @@ class FriendsScreen extends StatelessWidget {
               color: AppColors.accent.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
-            child: const Center(child: Text('🐑', style: TextStyle(fontSize: 20))),
+            child: ClipOval(
+              child: Image.asset(
+                'assets/images/nappu/nappu_suggests.png',
+                width: 28,
+                height: 28,
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -166,7 +173,7 @@ class FriendsScreen extends StatelessWidget {
         avgSleep: '8.1h',
         rank: 'Top 5%',
         isFriend: false,
-        roomColors: [const Color(0xFF2a2040), const Color(0xFF1c1830)],
+        imagePath: 'assets/images/friends/sleepy01.png',
       ),
       _FriendData(
         name: 'MoonWlk',
@@ -175,7 +182,7 @@ class FriendsScreen extends StatelessWidget {
         avgSleep: '7.6h',
         rank: 'Top 10%',
         isFriend: false,
-        roomColors: [const Color(0xFF302818), const Color(0xFF251e14)],
+        imagePath: 'assets/images/friends/moonwlk.png',
       ),
       _FriendData(
         name: 'DreamCo.',
@@ -184,7 +191,7 @@ class FriendsScreen extends StatelessWidget {
         avgSleep: '7.2h',
         rank: 'Top 20%',
         isFriend: true,
-        roomColors: [const Color(0xFF2a2040), const Color(0xFF1c1830)],
+        imagePath: 'assets/images/friends/dreamco.png',
       ),
       _FriendData(
         name: 'NapQueen',
@@ -193,7 +200,7 @@ class FriendsScreen extends StatelessWidget {
         avgSleep: '6.9h',
         rank: 'Top 20%',
         isFriend: true,
-        roomColors: [const Color(0xFF0d1b3e), const Color(0xFF1c2340)],
+        imagePath: 'assets/images/friends/napqueen.png',
       ),
     ];
 
@@ -222,18 +229,13 @@ class FriendsScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Room preview
-          Container(
-            height: 100,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: friend.roomColors,
-              ),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-            ),
-            child: const Center(
-              child: Text('🐑', style: TextStyle(fontSize: 40)),
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+            child: Image.asset(
+              friend.imagePath,
+              height: 100,
+              width: double.infinity,
+              fit: BoxFit.cover,
             ),
           ),
           Padding(
@@ -365,7 +367,12 @@ class FriendsScreen extends StatelessWidget {
   }
 
   Widget _buildMoreRooms() {
-    final rooms = ['CozyCloud', 'StarryNap', 'PillowPals', 'DreamySheep'];
+    final rooms = [
+      {'name': 'CozyCloud', 'image': 'assets/images/rooms/cozycloud.png'},
+      {'name': 'StarryNap', 'image': 'assets/images/rooms/starrynap.png'},
+      {'name': 'PillowPals', 'image': 'assets/images/rooms/pillowpals.png'},
+      {'name': 'DreamySheep', 'image': 'assets/images/rooms/dreamysheep.png'},
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -381,7 +388,7 @@ class FriendsScreen extends StatelessWidget {
               ),
             ),
             const Text(
-              'View more ›',
+              'View more \u203a',
               style: TextStyle(
                 color: AppColors.accent,
                 fontSize: 13,
@@ -400,28 +407,18 @@ class FriendsScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               return Column(
                 children: [
-                  Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          const Color(0xFF2a2040).withValues(alpha: 0.8),
-                          const Color(0xFF1c1830),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.cardBorder),
-                    ),
-                    child: const Center(
-                      child: Text('🐑', style: TextStyle(fontSize: 28)),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.asset(
+                      rooms[index]['image']!,
+                      width: 70,
+                      height: 70,
+                      fit: BoxFit.cover,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    rooms[index],
+                    rooms[index]['name']!,
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 11,
@@ -444,7 +441,7 @@ class _FriendData {
   final String avgSleep;
   final String rank;
   final bool isFriend;
-  final List<Color> roomColors;
+  final String imagePath;
 
   _FriendData({
     required this.name,
@@ -453,6 +450,6 @@ class _FriendData {
     required this.avgSleep,
     required this.rank,
     required this.isFriend,
-    required this.roomColors,
+    required this.imagePath,
   });
 }

@@ -102,10 +102,10 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
 
   Widget _buildQualitySelector(AppState state) {
     final qualities = [
-      {'label': 'Poor', 'emoji': '😴'},
-      {'label': 'Okay', 'emoji': '😐'},
-      {'label': 'Good', 'emoji': '😊'},
-      {'label': 'Great', 'emoji': '😍'},
+      {'label': 'Poor', 'image': 'assets/images/sleep/poor.png'},
+      {'label': 'Okay', 'image': 'assets/images/sleep/okay.png'},
+      {'label': 'Good', 'image': 'assets/images/sleep/good.png'},
+      {'label': 'Great', 'image': 'assets/images/sleep/great.png'},
     ];
 
     return Column(
@@ -139,22 +139,17 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                   ),
                   child: Column(
                     children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? AppColors.gold.withValues(alpha: 0.2)
-                              : AppColors.surfaceLight,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text('🐑', style: TextStyle(fontSize: selected ? 26 : 22)),
+                      ClipOval(
+                        child: Image.asset(
+                          q['image']!,
+                          width: selected ? 50 : 44,
+                          height: selected ? 50 : 44,
+                          fit: BoxFit.cover,
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        selected ? '${q['label']} ✓' : q['label']!,
+                        selected ? '${q['label']} \u2713' : q['label']!,
                         style: TextStyle(
                           color: selected ? AppColors.textPrimary : AppColors.textSecondary,
                           fontSize: 12,
