@@ -11,6 +11,8 @@ import 'screens/home_screen.dart';
 import 'screens/sleep_log_screen.dart';
 import 'screens/app_lock_screen.dart';
 import 'screens/nappu_screen.dart';
+import 'screens/friends_screen.dart';
+import 'screens/splash_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,9 +43,30 @@ class NappuApp extends StatelessWidget {
         title: 'Nappu',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const AuthGate(),
+        home: const _SplashGate(),
       ),
     );
+  }
+}
+
+class _SplashGate extends StatefulWidget {
+  const _SplashGate();
+
+  @override
+  State<_SplashGate> createState() => _SplashGateState();
+}
+
+class _SplashGateState extends State<_SplashGate> {
+  bool _splashDone = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_splashDone) {
+      return SplashScreen(
+        onComplete: () => setState(() => _splashDone = true),
+      );
+    }
+    return const AuthGate();
   }
 }
 
@@ -193,7 +216,8 @@ class _MainShellState extends State<MainShell> {
     const HomeScreen(key: ValueKey(0)),
     const SleepLogScreen(key: ValueKey(1)),
     const AppLockScreen(key: ValueKey(2)),
-    const NappuScreen(key: ValueKey(3)),
+    const FriendsScreen(key: ValueKey(3)),
+    const NappuScreen(key: ValueKey(4)),
   ];
 
   @override
@@ -219,7 +243,8 @@ class _MainShellState extends State<MainShell> {
                 _buildEmojiNavItem(0, '🏠', 'Home'),
                 _buildEmojiNavItem(1, '🌙', 'Sleep Log'),
                 _buildEmojiNavItem(2, '🔒', 'App Lock'),
-                _buildEmojiNavItem(3, '🐑', 'Nappu'),
+                _buildEmojiNavItem(3, '👥', 'Friends'),
+                _buildEmojiNavItem(4, '🐑', 'Nappu'),
               ],
             ),
           ),

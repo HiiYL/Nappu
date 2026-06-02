@@ -55,7 +55,7 @@ class _NappuScreenState extends State<NappuScreen> {
                   children: [
                     const Text('✨ ', style: TextStyle(fontSize: 18)),
                     const Text(
-                      "Nappu's Room",
+                      'Customise Nappu',
                       style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 22,
@@ -66,7 +66,7 @@ class _NappuScreenState extends State<NappuScreen> {
                 ),
                 const SizedBox(height: 4),
                 const Text(
-                  'Customise with your tokens',
+                  'Spend tokens to unlock new items',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
@@ -105,6 +105,21 @@ class _NappuScreenState extends State<NappuScreen> {
       'gradient': [Color(0xFF1a2a1a), Color(0xFF243524)],
       'scenery': '⛰️🌲🌿',
       'border': Color(0xFF3a5040),
+    },
+    'Ocean': {
+      'gradient': [Color(0xFF0a2540), Color(0xFF123456)],
+      'scenery': '🌊🐚🦀',
+      'border': Color(0xFF1a4570),
+    },
+    'Forest': {
+      'gradient': [Color(0xFF0d2a0d), Color(0xFF1a3a1a)],
+      'scenery': '🌿🍃🌲',
+      'border': Color(0xFF2a5530),
+    },
+    'Galaxy': {
+      'gradient': [Color(0xFF1a0a30), Color(0xFF2a1540)],
+      'scenery': '🌌🪐💫',
+      'border': Color(0xFF3a2560),
     },
   };
 
@@ -257,13 +272,13 @@ class _NappuScreenState extends State<NappuScreen> {
   }
 
   Widget _buildShopSection(AppState state) {
-    final categories = ['Hats', 'Outfits', 'Accessories'];
+    final categories = ['Hats', 'Outfits', 'Room Deco'];
     List<ShopItem> items;
     switch (state.selectedCategory) {
       case 'Outfits':
         items = state.outfits;
         break;
-      case 'Accessories':
+      case 'Room Deco':
         items = state.accessories;
         break;
       default:
@@ -274,7 +289,7 @@ class _NappuScreenState extends State<NappuScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Outfits & Accessories',
+          'Outfits & Items',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 18,
@@ -377,7 +392,7 @@ class _NappuScreenState extends State<NappuScreen> {
                     const SizedBox(height: 2),
                     if (item.equipped)
                       const Text(
-                        '✓ ON',
+                        '✓ On',
                         style: TextStyle(
                           color: AppColors.green,
                           fontSize: 10,
@@ -424,7 +439,7 @@ class _NappuScreenState extends State<NappuScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Room Themes',
+          '🏠 Room Themes',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontSize: 18,
@@ -432,74 +447,94 @@ class _NappuScreenState extends State<NappuScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: state.roomThemes.map((theme) {
-            return Expanded(
-              child: GestureDetector(
-                onTap: () async {
-                  if (theme.owned) {
-                    state.selectRoomTheme(theme.name);
-                  } else {
-                    if (state.tokens < theme.price) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Not enough tokens!'), backgroundColor: AppColors.red),
-                      );
-                      return;
-                    }
-                    final confirmed = await _confirmPurchase(theme.name, theme.price);
-                    if (confirmed) {
-                      state.purchaseRoomTheme(theme.name);
-                    }
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            childAspectRatio: 0.95,
+          ),
+          itemCount: state.roomThemes.length,
+          itemBuilder: (context, index) {
+            final theme = state.roomThemes[index];
+            return GestureDetector(
+              onTap: () async {
+                if (theme.owned) {
+                  state.selectRoomTheme(theme.name);
+                } else {
+                  if (state.tokens < theme.price) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Not enough tokens!'), backgroundColor: AppColors.red),
+                    );
+                    return;
                   }
-                },
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: theme.selected ? AppColors.surfaceLight : AppColors.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: theme.selected ? AppColors.gold : AppColors.cardBorder,
-                      width: theme.selected ? 2 : 1,
-                    ),
+                  final confirmed = await _confirmPurchase(theme.name, theme.price);
+                  if (confirmed) {
+                    state.purchaseRoomTheme(theme.name);
+                  }
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: theme.selected ? AppColors.surfaceLight : AppColors.card,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: theme.selected ? AppColors.gold : AppColors.cardBorder,
+                    width: theme.selected ? 2 : 1,
                   ),
-                  child: Column(
-                    children: [
-                      Text(theme.emoji, style: const TextStyle(fontSize: 28)),
-                      const SizedBox(height: 6),
-                      Text(
-                        theme.name,
-                        style: TextStyle(
-                          color: theme.selected ? AppColors.textPrimary : AppColors.textSecondary,
-                          fontSize: 12,
-                          fontWeight: theme.selected ? FontWeight.w600 : FontWeight.normal,
-                        ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(theme.emoji, style: const TextStyle(fontSize: 28)),
+                    const SizedBox(height: 6),
+                    Text(
+                      theme.name,
+                      style: TextStyle(
+                        color: theme.selected ? AppColors.textPrimary : AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: theme.selected ? FontWeight.w600 : FontWeight.normal,
                       ),
-                      if (!theme.owned)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text('🪙', style: TextStyle(fontSize: 10)),
-                              const SizedBox(width: 2),
-                              Text(
-                                '${theme.price}',
-                                style: const TextStyle(
-                                  color: AppColors.gold,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                    ),
+                    if (theme.selected)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text(
+                          '✓ Active',
+                          style: TextStyle(
+                            color: AppColors.green,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                    ],
-                  ),
+                      )
+                    else if (!theme.owned)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text('🪙', style: TextStyle(fontSize: 10)),
+                            const SizedBox(width: 2),
+                            Text(
+                              '${theme.price}',
+                              style: const TextStyle(
+                                color: AppColors.gold,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
               ),
             );
-          }).toList(),
+          },
         ),
       ],
     );

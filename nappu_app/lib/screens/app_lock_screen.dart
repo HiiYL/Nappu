@@ -129,26 +129,31 @@ class _AppLockScreenState extends State<AppLockScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.lock, color: AppColors.gold, size: 22),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'App Lock',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                  Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.lock, color: AppColors.gold, size: 22),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'App Lock',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
-                    'Block distractions before bed',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
+                  const Center(
+                    child: Text(
+                      'Block distractions before bed',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                   if (AppLockNative.isAndroid && _checkedPermissions && (!_hasUsagePermission || !_hasOverlayPermission)) ...[
@@ -371,9 +376,9 @@ class _AppLockScreenState extends State<AppLockScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: AppColors.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder, width: 1),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.2), width: 1),
       ),
       child: Row(
         children: [
@@ -670,13 +675,21 @@ class _AppLockScreenState extends State<AppLockScreen> {
               ],
             ),
             const SizedBox(height: 6),
-            const Text(
-              'Spending tokens keeps Nappu healthy and motivated!',
-              style: TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 11,
-                fontStyle: FontStyle.italic,
-              ),
+            Row(
+              children: [
+                const Text('🐑', style: TextStyle(fontSize: 22)),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Breaking the lock makes Nappu sick! Costs 🪙 150 to heal.',
+                    style: TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

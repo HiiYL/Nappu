@@ -90,18 +90,20 @@ class RoomTheme {
 // Emoji lookup for shop items (static catalog)
 const Map<String, String> _itemEmojis = {
   'Top Hat': '🎩', 'Cap': '🧢', 'Crown': '👑', 'Flower': '🌸',
-  'Helmet': '🪖', 'Grad Cap': '🎓', 'Bear Ear': '🧸', 'Halo': '✨',
+  'Helmet': '🪖', 'Grad Cap': '🎓', 'Bear Ear': '🧸', 'Glitter': '✨',
   'Pajamas': '👕', 'Sweater': '🧥', 'Cape': '🦸', 'Scarf': '🧣',
   'Pillow': '🛏️', 'Blanket': '🛋️', 'Teddy': '🧸', 'Moon Lamp': '🌙',
   'Night Sky': '🌙', 'Sakura': '🌸', 'Mountain': '⛰️',
+  'Ocean': '🌊', 'Forest': '🌿', 'Galaxy': '🌌',
 };
 
 const Map<String, int> _itemPrices = {
   'Top Hat': 0, 'Cap': 0, 'Crown': 120, 'Flower': 80,
-  'Helmet': 90, 'Grad Cap': 100, 'Bear Ear': 60, 'Halo': 200,
+  'Helmet': 90, 'Grad Cap': 100, 'Bear Ear': 60, 'Glitter': 200,
   'Pajamas': 0, 'Sweater': 100, 'Cape': 150, 'Scarf': 70,
   'Pillow': 50, 'Blanket': 80, 'Teddy': 60, 'Moon Lamp': 120,
   'Night Sky': 0, 'Sakura': 0, 'Mountain': 150,
+  'Ocean': 120, 'Forest': 130, 'Galaxy': 180,
 };
 
 // Icon/color lookup for locked apps
@@ -288,6 +290,12 @@ class AppState extends ChangeNotifier {
     return t?.name ?? 'Night Sky';
   }
 
+  String get bedtimeDisplay {
+    final h = currentBedtime.hourOfPeriod == 0 ? 12 : currentBedtime.hourOfPeriod;
+    final m = currentBedtime.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
   String get lockDurationText {
     final startMin = lockStartHour * 60 + lockStartMinute;
     final endMin = lockEndHour * 60 + lockEndMinute;
@@ -356,14 +364,14 @@ class AppState extends ChangeNotifier {
   void _loadDefaultShopItems() {
     assert(_itemEmojis.keys.every(_itemPrices.containsKey));
     hats = [
-      ShopItem(name: 'Top Hat', emoji: '🎩', price: 0, owned: true, equipped: true),
-      ShopItem(name: 'Cap', emoji: '🧢', price: 0, owned: true),
+      ShopItem(name: 'Cap', emoji: '🧢', price: 0, owned: true, equipped: true),
+      ShopItem(name: 'Top Hat', emoji: '🎩', price: 0, owned: true),
       ShopItem(name: 'Crown', emoji: '👑', price: 120),
       ShopItem(name: 'Flower', emoji: '🌸', price: 80),
-      ShopItem(name: 'Helmet', emoji: '🪖', price: 90),
       ShopItem(name: 'Grad Cap', emoji: '🎓', price: 100),
       ShopItem(name: 'Bear Ear', emoji: '🧸', price: 60),
-      ShopItem(name: 'Halo', emoji: '✨', price: 200),
+      ShopItem(name: 'Glitter', emoji: '✨', price: 200),
+      ShopItem(name: 'Helmet', emoji: '🪖', price: 90),
     ];
     outfits = [
       ShopItem(name: 'Pajamas', emoji: '👕', price: 0, owned: true, equipped: true),
@@ -381,6 +389,9 @@ class AppState extends ChangeNotifier {
       RoomTheme(name: 'Night Sky', emoji: '🌙', price: 0, owned: true, selected: true),
       RoomTheme(name: 'Sakura', emoji: '🌸', price: 0, owned: true, selected: false),
       RoomTheme(name: 'Mountain', emoji: '⛰️', price: 150, owned: false, selected: false),
+      RoomTheme(name: 'Ocean', emoji: '🌊', price: 120, owned: false, selected: false),
+      RoomTheme(name: 'Forest', emoji: '🌿', price: 130, owned: false, selected: false),
+      RoomTheme(name: 'Galaxy', emoji: '🌌', price: 180, owned: false, selected: false),
     ];
   }
 

@@ -73,9 +73,9 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    _todayString(),
-                    style: const TextStyle(
+                  const Text(
+                    'Record your sleep duration!',
+                    style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 13,
                     ),
@@ -99,12 +99,6 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
     );
   }
 
-  String _todayString() {
-    final now = DateTime.now();
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    return '${days[now.weekday - 1]}, ${now.day} ${months[now.month - 1]} ${now.year}';
-  }
 
   Widget _buildQualitySelector(AppState state) {
     final qualities = [
@@ -114,75 +108,76 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
       {'label': 'Great', 'emoji': '😍'},
     ];
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.cardBorder, width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'HOW DID YOU SLEEP?',
-            style: TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.5,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'How did you sleep?',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: qualities.map((q) {
-              final selected = state.currentSleepQuality == q['label'];
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => state.setSleepQuality(q['label']!),
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: selected ? AppColors.surfaceLight : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: selected ? AppColors.accent : AppColors.cardBorder,
-                        width: selected ? 2 : 1,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(q['emoji']!, style: const TextStyle(fontSize: 20)),
-                        const SizedBox(height: 4),
-                        Text(
-                          q['label']!,
-                          style: TextStyle(
-                            color: selected ? AppColors.textPrimary : AppColors.textSecondary,
-                            fontSize: 12,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                          ),
-                        ),
-                      ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: qualities.map((q) {
+            final selected = state.currentSleepQuality == q['label'];
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => state.setSleepQuality(q['label']!),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selected ? AppColors.surfaceLight : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: selected ? AppColors.accent : AppColors.cardBorder,
+                      width: selected ? 2 : 1,
                     ),
                   ),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? AppColors.gold.withValues(alpha: 0.2)
+                              : AppColors.surfaceLight,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text('🐑', style: TextStyle(fontSize: selected ? 26 : 22)),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        selected ? '${q['label']} ✓' : q['label']!,
+                        style: TextStyle(
+                          color: selected ? AppColors.textPrimary : AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
-  String _formatTime(TimeOfDay t) {
-    final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-    final min = t.minute.toString().padLeft(2, '0');
-    final period = t.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$hour:$min $period';
-  }
-
   Widget _buildDurationPicker(AppState state) {
+    final bedHour = state.currentBedtime.hourOfPeriod == 0 ? 12 : state.currentBedtime.hourOfPeriod;
+    final bedPeriod = state.currentBedtime.period == DayPeriod.am ? 'AM' : 'PM';
+    final wakeHour = state.currentWakeup.hourOfPeriod == 0 ? 12 : state.currentWakeup.hourOfPeriod;
+    final wakePeriod = state.currentWakeup.period == DayPeriod.am ? 'AM' : 'PM';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -208,87 +203,68 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
               Expanded(
                 child: GestureDetector(
                   onTap: () => _pickBedtime(state),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          _formatTime(state.currentBedtime),
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
+                  child: Column(
+                    children: [
+                      Text(
+                        '$bedHour'.padLeft(2, '0'),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 38,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Bedtime',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
-                          ),
+                      ),
+                      Text(
+                        'Bedtime $bedPeriod',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Column(
-                  children: [
-                    const Text('🌙', style: TextStyle(fontSize: 14)),
-                    const SizedBox(height: 2),
-                    Icon(Icons.arrow_forward, color: AppColors.textMuted, size: 16),
-                  ],
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text(
+                  '→',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 20,
+                  ),
                 ),
               ),
               Expanded(
                 child: GestureDetector(
                   onTap: () => _pickWakeup(state),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceLight,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          _formatTime(state.currentWakeup),
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
+                  child: Column(
+                    children: [
+                      Text(
+                        '$wakeHour'.padLeft(2, '0'),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 38,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'Wakeup',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
-                          ),
+                      ),
+                      Text(
+                        'Wakeup $wakePeriod',
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 11,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
               Column(
                 children: [
                   Text(
                     state.sleepDurationFormatted,
                     style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 22,
+                      color: AppColors.accent,
+                      fontSize: 30,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -427,7 +403,7 @@ class _SleepLogScreenState extends State<SleepLogScreen> {
                 )
               else ...[
                 const Text(
-                  'Log Sleep + Earn 50 ',
+                  'Log Sleep · Earn 30 ',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
