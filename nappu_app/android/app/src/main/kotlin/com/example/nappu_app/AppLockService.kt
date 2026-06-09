@@ -20,6 +20,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.view.Gravity
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
@@ -269,10 +270,13 @@ class AppLockService : Service() {
             setPadding(dp(24), dp(24), dp(24), dp(24))
         }
 
-        val emoji = TextView(this).apply {
-            text = "\uD83D\uDC11"
-            textSize = 64f
-            gravity = Gravity.CENTER
+        val nappuImage = ImageView(this).apply {
+            setImageResource(R.drawable.nappu_lock)
+            adjustViewBounds = true
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            layoutParams = LinearLayout.LayoutParams(dp(116), dp(132)).apply {
+                bottomMargin = dp(12)
+            }
         }
 
         val title = TextView(this).apply {
@@ -345,7 +349,7 @@ class AppLockService : Service() {
         })
         buttonRow.addView(openNappuButton)
 
-        layout.addView(emoji)
+        layout.addView(nappuImage)
         layout.addView(title)
         layout.addView(subtitle)
         layout.addView(android.view.View(this).apply {
