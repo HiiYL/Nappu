@@ -512,6 +512,10 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> syncNativeLock() async {
+    await _syncNativeLock();
+  }
+
   Future<void> _loadInventory() async {
     _loadDefaultShopItems();
 
@@ -821,6 +825,10 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  static String _inventoryCategoryForStorage(String category) {
+    return category == 'Room Deco' ? 'Accessories' : category;
+  }
+
   Future<void> purchaseItem(ShopItem item, String category) async {
     if (tokens < item.price) return;
     final busyKey = 'purchase_${item.name}';
@@ -844,7 +852,11 @@ class AppState extends ChangeNotifier {
 
     // Server-side RPC checks balance + deducts atomically
     try {
-      final res = await SupabaseService.purchaseItem(category, item.name, item.price);
+      final res = await SupabaseService.purchaseItem(
+        _inventoryCategoryForStorage(category),
+        item.name,
+        item.price,
+      );
       if (res['success'] == true) {
         tokens = res['new_balance'] as int;
         notifyListeners();
@@ -880,7 +892,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     // Equip is low-risk, direct write is fine
-    await SupabaseService.equipItem(category, item.name);
+    await SupabaseService.equipItem(_inventoryCategoryForStorage(category), item.name);
   }
 
   Future<void> selectRoomTheme(String themeName) async {

@@ -11,7 +11,7 @@ class AppLockScreen extends StatefulWidget {
   State<AppLockScreen> createState() => _AppLockScreenState();
 }
 
-class _AppLockScreenState extends State<AppLockScreen> {
+class _AppLockScreenState extends State<AppLockScreen> with WidgetsBindingObserver {
   bool _hasUsagePermission = false;
   bool _hasOverlayPermission = false;
   bool _checkedPermissions = false;
@@ -19,7 +19,21 @@ class _AppLockScreenState extends State<AppLockScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkPermissions();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissions();
+    }
   }
 
   Future<void> _checkPermissions() async {
@@ -35,6 +49,9 @@ class _AppLockScreenState extends State<AppLockScreen> {
         _hasOverlayPermission = overlay;
         _checkedPermissions = true;
       });
+      if (usage && overlay) {
+        await context.read<AppState>().syncNativeLock();
+      }
     }
   }
 

@@ -44,13 +44,7 @@ class MainActivity : FlutterActivity() {
                     val endHour = call.argument<Int>("endHour") ?: 7
                     val endMinute = call.argument<Int>("endMinute") ?: 0
                     AppLockService.updateConfig(this, packages, startHour, startMinute, endHour, endMinute)
-                    val intent = Intent(this, AppLockService::class.java)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        startForegroundService(intent)
-                    } else {
-                        startService(intent)
-                    }
-                    result.success(true)
+                    result.success(startAppLockService())
                 }
                 "stopAppLock" -> {
                     stopService(Intent(this, AppLockService::class.java))
@@ -66,11 +60,12 @@ class MainActivity : FlutterActivity() {
                     val endHour = call.argument<Int>("endHour") ?: 7
                     val endMinute = call.argument<Int>("endMinute") ?: 0
                     AppLockService.updateConfig(this, packages, startHour, startMinute, endHour, endMinute)
-                    result.success(true)
+                    result.success(startAppLockService())
                 }
                 "emergencyOverride" -> {
                     val durationMs = call.argument<Int>("durationMs") ?: 900000
-                    AppLockService.setOverrideUntil(this, System.currentTimeMillis() + durationMs)
+                    val overrideUntil = System.currentTimeMillis() + durationMs
+                    AppLockService.setOverrideUntil(this, overrideUntil)
                     result.success(true)
                 }
                 else -> result.notImplemented()
@@ -86,5 +81,16 @@ class MainActivity : FlutterActivity() {
             packageName
         )
         return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    private fun startAppLockService(): Boolean {
+        if (!hasUsageStatsPermission() || !Settings.canDrawOverlays(this)) return false
+        val intent = Intent(this, AppLockService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+        return true
     }
 }
